@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ATLAS — Save Anything. Find Everything.</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        atlas: {
+                            blue: '#0B192C',      // Deep Blue Primary
+                            bluelight: '#1A365D', // Slightly lighter blue for active states
+                            surface: '#FDFCFB',   // Warm white background
+                            surfaceDark: '#121212', // Soft dark mode
+                            card: '#FFFFFF',
+                            cardDark: '#1E1E1E',
+                            purple: '#9333EA',    // AI accent
+                        },
+                        emerald: {
+                            400: '#34D399',
+                            500: '#10B981',       // Success Accent
+                            600: '#059669',
+                        },
+                        amber: { 500: '#F59E0B' }, // Warning
+                        rose: { 500: '#EF4444' }   // Error
+                    },
+                    borderRadius: {
+                        '4xl': '2rem',     // Extrapolated for M3 large rounded corners
+                        '5xl': '2.5rem',
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'float': '0 12px 32px -4px rgba(11, 25, 44, 0.15)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Smooth Screen Transitions */
+        .app-screen {
+            display: none;
+            opacity: 0;
+            transform: scale(0.98) translateY(10px);
+            transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+        }
+        .app-screen.active {
+            display: flex;
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+
+        /* Material 3 inspired ripple and scale */
+        .m3-press:active {
+            transform: scale(0.96);
+            transition: transform 0.1s;
+        }
+
+        /* AI Gradient Text */
+        .ai-text {
+            background: linear-gradient(135deg, #9333EA, #3B82F6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Universe Node Graph Styles */
+        .universe-node {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 0 20px rgba(255,255,255,0.1);
+            transition: all 0.5s ease-out;
+            cursor: pointer;
+        }
+        .universe-line {
+            position: absolute;
+            background: rgba(255,255,255,0.1);
+            transform-origin: 0 50%;
+            z-index: 0;
+        }
+
+        /* Pulsing AI Animation */
+        @keyframes subtle-breathe {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        .animate-breathe { animation: subtle-breathe 3s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 min-h-screen font-sans antialiased flex flex-col items-center justify-center p-0 md:p-6 select-none">
+
+    <header class="w-full max-w-md md:max-w-4xl mb-4 px-4 hidden sm:flex items-center justify-between text-xs text-gray-500 font-medium">
+        <div class="flex items-center space-x-2">
+            <span class="font-bold text-gray-700">ATLAS Personal Memory OS</span>
+            <span>• Vision Mockup</span>
+        </div>
+        
+        <div class="flex items-center space-x-2">
+            <select id="screenSelect" onchange="navigateTo(this.value)" class="bg-white border border-gray-200 rounded-lg px-2 py-1 focus:outline-none">
+                <option value="screen-splash">Splash</option>
+                <option value="screen-onboarding">Onboarding</option>
+                <option value="screen-permissions">Permissions</option>
+                <option value="screen-home">Home</option>
+                <option value="screen-search">Universal Search</option>
+                <option value="screen-share-process">Share Processing</option>
+                <option value="screen-screenshot-review">Screenshot Review</option>
+                <option value="screen-needs-review">Needs Review</option>
+                <option value="screen-universe">Universe Graph</option>
+                <option value="screen-profile">Profile</option>
+            </select>
+        </div>
+    </header>
+
+    <main id="phoneContainer" class="w-full max-w-[412px] h-[840px] max-h-[100vh] sm:max-h-[840px] bg-atlas-surface dark:bg-atlas-surfaceDark sm:rounded-[48px] shadow-2xl sm:border-[12px] sm:border-gray-900 relative flex flex-col overflow-hidden text-gray-900 dark:text-white transition-colors duration-300">
+
+        <!-- Status Bar -->
+        <div class="w-full pt-3 pb-2 px-7 flex justify-between items-center text-xs font-semibold z-50 shrink-0">
+            <span id="statusBarTime">9:41</span>
+            <div class="w-28 h-6 bg-black rounded-full absolute left-1/2 -translate-x-1/2 -top-1"></div> <!-- Dynamic Island -->
+            <div class="flex items-center space-x-1.5">
+                <i class="fa-solid fa-signal"></i>
+                <i class="fa-solid fa-wifi"></i>
+                <i class="fa-solid fa-battery-full"></i>
+            </div>
+        </div>
+
+        <!-- Main Screen Area -->
+        <div class="flex-1 relative overflow-hidden flex flex-col pb-20">
+
+            <section id="screen-splash" class="app-screen active flex-col items-center justify-center h-full bg-atlas-blue text-white">
+                <div class="animate-breathe flex flex-col items-center">
+                    <div class="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md mb-6">
+                        <i class="fa-solid fa-compass text-4xl text-white"></i>
+                    </div>
+                    <h1 class="text-4xl font-extrabold tracking-tight mb-2">ATLAS</h1>
+                </div>
+            </section>
+
+            <section id="screen-onboarding" class="app-screen flex-col h-full bg-atlas-surface">
+                <div class="flex-1 flex flex-col justify-center items-center p-8 text-center" id="onboard-step-1">
+                    <div class="w-full aspect-square bg-gray-100 rounded-4xl mb-8 flex items-center justify-center relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-tr from-atlas-blue/5 to-emerald-500/10"></div>
+                        <i class="fa-solid fa-photo-film text-5xl text-gray-400 absolute top-12 left-10 transform -rotate-12"></i>
+                        <i class="fa-solid fa-link text-4xl text-blue-400 absolute bottom-16 right-12 transform rotate-12"></i>
+                        <i class="fa-solid fa-file-pdf text-6xl text-rose-400"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold text-atlas-blue mb-3">Save Anything</h2>
+                    <p class="text-gray-500 font-medium text-lg leading-relaxed">Share links, screenshots, ideas, or files into ATLAS from anywhere.</p>
+                </div>
+                <div class="p-8 pt-0">
+                    <button onclick="navigateTo('screen-permissions')" class="w-full py-4 bg-atlas-blue text-white rounded-full font-bold text-lg m3-press shadow-float">
+                        Continue
+                    </button>
+                </div>
+            </section>
+
+            <section id="screen-permissions" class="app-screen flex-col h-full bg-atlas-surface">
+                <div class="flex-1 flex flex-col justify-center p-8">
+                    <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl mb-6">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold text-atlas-blue mb-4">Your memory, privately processed.</h2>
+                    <p class="text-gray-600 font-medium text-base leading-relaxed mb-8">
+                        To help you find things effortlessly, ATLAS needs access to process your saves. We never sell your data.
+                    </p>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-4 bg-white rounded-3xl border border-gray-100 shadow-soft">
+                            <div class="flex items-center space-x-4">
+                                <i class="fa-solid fa-image text-gray-400 text-xl"></i>
+                                <div>
+                                    <p class="font-bold text-gray-800">Photo Library</p>
+                                    <p class="text-xs text-gray-500">For screenshot review</p>
+                                </div>
+                            </div>
+                            <div class="w-12 h-7 bg-emerald-500 rounded-full relative">
+                                <div class="w-5 h-5 bg-white rounded-full absolute right-1 top-1"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-8 pt-0">
+                    <button onclick="navigateTo('screen-home')" class="w-full py-4 bg-atlas-blue text-white rounded-full font-bold text-lg m3-press shadow-float">
+                        Enter ATLAS
+                    </button>
+                </div>
+            </section>
+
+            <section id="screen-home" class="app-screen flex-col h-full bg-atlas-surface overflow-y-auto no-scrollbar">
+                <div class="p-6 pt-10 space-y-8 pb-10">
+                    <!-- Header -->
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <p class="text-gray-500 font-medium text-sm mb-1">Good morning, Alex</p>
+                            <h1 class="text-3xl font-extrabold text-atlas-blue">Your Memory</h1>
+                        </div>
+                        <button onclick="navigateTo('screen-profile')" class="w-12 h-12 bg-white rounded-full shadow-soft flex items-center justify-center text-gray-400 m3-press border border-gray-100">
+                            <i class="fa-solid fa-user"></i>
+                        </button>
+                    </div>
+
+                    <!-- Search Trigger -->
+                    <div onclick="navigateTo('screen-search')" class="w-full bg-white p-4 rounded-3xl shadow-soft border border-gray-50 flex items-center space-x-4 cursor-pointer m3-press">
+                        <i class="fa-solid fa-sparkles text-atlas-purple text-lg"></i>
+                        <span class="text-gray-400 font-medium text-lg">Ask ATLAS anything...</span>
+                    </div>
+
+                    <!-- Needs Review (Dynamic Nudge) -->
+                    <div class="bg-amber-50 rounded-3xl p-5 border border-amber-100 relative overflow-hidden cursor-pointer m3-press" onclick="navigateTo('screen-needs-review')">
+                        <div class="absolute right-0 top-0 w-24 h-24 bg-amber-200/50 rounded-full blur-2xl transform translate-x-1/2 -translate-y-1/2"></div>
+                        <div class="flex items-start justify-between relative z-10">
+                            <div>
+                                <h3 class="font-bold text-amber-900 text-lg mb-1">Clarify 2 Items</h3>
+                                <p class="text-amber-700/80 text-sm font-medium pr-4">I'm not completely sure how to organize a few recent saves.</p>
+                            </div>
+                            <div class="w-10 h-10 bg-amber-200 text-amber-700 rounded-full flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Saves Area -->
+                    <div>
+                        <h2 class="font-bold text-gray-800 text-xl mb-4 px-1">Recently Saved</h2>
+                        <div class="space-y-3">
+                            <!-- Card 1 -->
+                            <div onclick="navigateTo('screen-detail')" class="bg-white p-4 rounded-[28px] shadow-soft flex gap-4 items-center m3-press border border-gray-50">
+                                <div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center shrink-0 text-2xl">
+                                    <i class="fa-solid fa-link"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-900 text-base line-clamp-1">Linear Design System</h4>
+                                    <p class="text-gray-500 text-sm font-medium line-clamp-1">linear.app/docs</p>
+                                    <p class="text-gray-400 text-xs mt-1">Saved 2h ago</p>
+                                </div>
+                            </div>
+
+                            <!-- Card 2 -->
+                            <div class="bg-white p-4 rounded-[28px] shadow-soft flex gap-4 items-center m3-press border border-gray-50">
+                                <div class="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center shrink-0 text-2xl overflow-hidden relative">
+                                     <i class="fa-solid fa-image absolute z-10"></i>
+                                     <div class="absolute inset-0 bg-emerald-100 opacity-50"></div>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-900 text-base line-clamp-1">Recipe: Paneer Tikka</h4>
+                                    <p class="text-gray-500 text-sm font-medium line-clamp-1">Screenshot • Instagram</p>
+                                    <p class="text-gray-400 text-xs mt-1">Saved yesterday</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="screen-search" class="app-screen flex-col h-full bg-white z-20">
+                <div class="p-6 pt-12 pb-4 border-b border-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <button onclick="navigateTo('screen-home')" class="w-10 h-10 flex items-center justify-center text-gray-400 m3-press">
+                            <i class="fa-solid fa-arrow-left text-lg"></i>
+                        </button>
+                        <input type="text" id="searchInput" placeholder="That internship from June..." class="flex-1 bg-transparent text-xl font-medium text-gray-900 focus:outline-none placeholder-gray-300" oninput="simulateSearch(this.value)">
+                    </div>
+                    
+                    <div class="mt-6 flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                        <span class="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium text-gray-600 shrink-0 m3-press" onclick="document.getElementById('searchInput').value='Recipe with paneer'; simulateSearch('paneer')">Recipe with paneer</span>
+                        <span class="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium text-gray-600 shrink-0 m3-press" onclick="document.getElementById('searchInput').value='Shoes under ₹3000'; simulateSearch('shoes')">Shoes under ₹3000</span>
+                    </div>
+                </div>
+
+                <div id="searchResultsArea" class="flex-1 overflow-y-auto p-6 bg-atlas-surface hidden">
+                    <div class="space-y-6">
+                        <!-- AI Reason Bubble -->
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-atlas-purple to-blue-500 flex items-center justify-center shrink-0 mt-1 shadow-md">
+                                <i class="fa-solid fa-sparkles text-white text-[10px]"></i>
+                            </div>
+                            <div class="bg-white p-4 rounded-2xl rounded-tl-none shadow-soft border border-gray-50 max-w-[85%]">
+                                <p class="text-sm font-medium text-gray-700">I found 1 screenshot matching your search for <span class="font-bold">paneer recipes</span> based on the text I read inside the image.</p>
+                            </div>
+                        </div>
+
+                        <!-- Result Card -->
+                        <div class="bg-white p-2 rounded-[32px] shadow-soft border border-gray-100 m3-press">
+                            <div class="w-full h-40 bg-emerald-50 rounded-[24px] flex flex-col items-center justify-center text-emerald-300 mb-3 relative overflow-hidden">
+                                <i class="fa-solid fa-image text-4xl mb-2"></i>
+                                <span class="text-xs font-bold">SCREENSHOT</span>
+                                <div class="absolute bottom-3 left-3 right-3 bg-white/90 backdrop-blur p-2 rounded-xl text-xs font-medium text-gray-700">
+                                    Extracted: "...marinate paneer cubes in yogurt..."
+                                </div>
+                            </div>
+                            <div class="px-4 pb-4">
+                                <h4 class="font-bold text-gray-900 text-lg">Paneer Tikka Recipe</h4>
+                                <p class="text-gray-500 text-sm font-medium">Saved from Instagram • Yesterday</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="screen-detail" class="app-screen flex-col h-full bg-atlas-surface z-10 overflow-y-auto no-scrollbar">
+                <div class="relative w-full h-64 bg-blue-50 flex items-center justify-center">
+                    <button onclick="navigateTo('screen-home')" class="absolute top-12 left-6 w-10 h-10 bg-white/80 backdrop-blur rounded-full flex items-center justify-center text-gray-700 m3-press shadow-soft">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <button class="absolute top-12 right-6 w-10 h-10 bg-white/80 backdrop-blur rounded-full flex items-center justify-center text-gray-700 m3-press shadow-soft">
+                        <i class="fa-solid fa-share"></i>
+                    </button>
+                    <i class="fa-solid fa-link text-6xl text-blue-300"></i>
+                </div>
+
+                <div class="p-6 -mt-8 relative z-10 bg-atlas-surface rounded-t-[40px]">
+                    <div class="flex items-center space-x-2 mb-3">
+                        <div class="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
+                            <i class="fa-brands fa-safari text-gray-500 text-xs"></i>
+                        </div>
+                        <span class="text-xs font-bold text-gray-500 tracking-wide uppercase">Arc Browser • 2h ago</span>
+                    </div>
+                    
+                    <h1 class="text-2xl font-extrabold text-atlas-blue leading-tight mb-6">Linear Design System Guidelines</h1>
+
+                    <!-- AI Summary -->
+                    <div class="bg-white rounded-3xl p-5 shadow-soft border border-gray-100 mb-6">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <i class="fa-solid fa-sparkles text-atlas-purple"></i>
+                            <span class="font-bold ai-text text-sm uppercase tracking-wide">Understanding</span>
+                        </div>
+                        <p class="text-gray-600 font-medium leading-relaxed">
+                            A comprehensive guide to Linear's minimalist interaction design. Focuses on high contrast typography, keyboard-first navigation, and using deep navy accents to guide user attention.
+                        </p>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="flex gap-3 mb-8">
+                        <button class="flex-1 py-4 bg-atlas-blue text-white rounded-2xl font-bold m3-press shadow-float text-sm">
+                            Open Link
+                        </button>
+                        <button class="w-14 h-14 bg-gray-100 text-gray-600 rounded-2xl font-bold m3-press flex items-center justify-center">
+                            <i class="fa-regular fa-bookmark text-lg"></i>
+                        </button>
+                    </div>
+
+                    <h3 class="font-bold text-gray-800 text-lg mb-4 px-1">Related Memories</h3>
+                    <div class="space-y-3">
+                        <div class="bg-white p-3 rounded-2xl shadow-sm flex gap-3 items-center border border-gray-50">
+                            <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400">
+                                <i class="fa-solid fa-palette"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-sm">UI Inspiration Board</h4>
+                                <p class="text-gray-500 text-xs font-medium">Collection</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="screen-share-process" class="app-screen flex-col items-center justify-center h-full bg-atlas-blue/95 backdrop-blur-md z-50 text-white p-8 text-center absolute inset-0">
+                <div class="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mb-8 relative">
+                    <div class="absolute inset-0 rounded-full border-2 border-white/20 border-t-emerald-400 animate-spin"></div>
+                    <i class="fa-solid fa-brain text-3xl text-emerald-400"></i>
+                </div>
+                <h2 id="process-title" class="text-2xl font-bold mb-2">Understanding this...</h2>
+                <p id="process-subtitle" class="text-white/60 font-medium">Extracting context and meaning.</p>
+                
+                <!-- Simulated completion button that appears after animation -->
+                <button id="process-done-btn" onclick="navigateTo('screen-home')" class="mt-12 py-4 px-8 bg-white text-atlas-blue rounded-full font-bold text-lg m3-press shadow-float opacity-0 translate-y-4 transition-all duration-500 pointer-events-none">
+                    Return to previous app
+                </button>
+            </section>
+
+            <section id="screen-needs-review" class="app-screen flex-col h-full bg-atlas-surface z-10">
+                <div class="p-6 pt-12 pb-4 flex items-center space-x-4">
+                    <button onclick="navigateTo('screen-home')" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-700 m3-press shadow-soft">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <h1 class="text-2xl font-extrabold text-atlas-blue">Just a quick check</h1>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6 space-y-6 pt-2">
+                    <p class="text-gray-500 font-medium text-lg leading-relaxed">I'm not completely sure where this belongs. Tap a suggestion to help me learn.</p>
+
+                    <div class="bg-white p-5 rounded-[32px] shadow-soft border border-gray-100">
+                        <div class="flex items-start gap-4 mb-6">
+                            <div class="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center shrink-0 text-xl text-gray-500">
+                                <i class="fa-solid fa-file-pdf"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-lg leading-tight mb-1">Airbnb Booking Receipt.pdf</h4>
+                                <p class="text-gray-500 text-sm font-medium">Added from Downloads</p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button class="px-5 py-3 bg-blue-50 text-blue-700 rounded-2xl font-bold text-sm m3-press" onclick="resolveTriage(this)">Travel</button>
+                            <button class="px-5 py-3 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm m3-press" onclick="resolveTriage(this)">Finance</button>
+                            <button class="px-5 py-3 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm m3-press" onclick="resolveTriage(this)">Reference</button>
+                            <button class="px-5 py-3 bg-gray-100 text-gray-400 border border-gray-200 rounded-2xl font-bold text-sm m3-press border-dashed" onclick="resolveTriage(this)">Other...</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="screen-screenshot-review" class="app-screen flex-col h-full bg-atlas-surface z-10">
+                <div class="p-6 pt-12 pb-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <button onclick="navigateTo('screen-home')" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-700 m3-press shadow-soft">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                        <span class="text-sm font-bold text-gray-400 uppercase tracking-wider">Camera Roll</span>
+                    </div>
+                    <h1 class="text-3xl font-extrabold text-atlas-blue mb-2">2 new screenshots</h1>
+                    <p class="text-gray-500 font-medium">Select what you want ATLAS to remember. The rest stays private.</p>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6 pt-2 pb-24">
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Selectable Image 1 -->
+                        <div class="aspect-[4/5] bg-gray-200 rounded-[24px] relative cursor-pointer overflow-hidden group" onclick="toggleSelect(this)">
+                            <div class="absolute inset-0 bg-cover bg-center opacity-80" style="background-image: url('https://placehold.co/400x500/e2e8f0/64748b?text=Receipt')"></div>
+                            <div class="absolute inset-0 bg-atlas-blue/20 group-hover:bg-atlas-blue/10 transition-colors"></div>
+                            <div class="absolute top-3 right-3 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center select-indicator transition-all bg-white/20 backdrop-blur">
+                                <i class="fa-solid fa-check text-white opacity-0 text-xs"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- Selectable Image 2 -->
+                        <div class="aspect-[4/5] bg-gray-200 rounded-[24px] relative cursor-pointer overflow-hidden group" onclick="toggleSelect(this)">
+                            <div class="absolute inset-0 bg-cover bg-center opacity-80" style="background-image: url('https://placehold.co/400x500/e2e8f0/64748b?text=Meme')"></div>
+                            <div class="absolute inset-0 bg-atlas-blue/20 group-hover:bg-atlas-blue/10 transition-colors"></div>
+                            <div class="absolute top-3 right-3 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center select-indicator transition-all bg-white/20 backdrop-blur">
+                                <i class="fa-solid fa-check text-white opacity-0 text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-atlas-surface via-atlas-surface to-transparent pt-12">
+                    <button onclick="navigateTo('screen-home')" class="w-full py-4 bg-atlas-blue text-white rounded-full font-bold text-lg m3-press shadow-float">
+                        Save Selected
+                    </button>
+                </div>
+            </section>
+
+            <section id="screen-universe" class="app-screen flex-col h-full bg-atlas-surface overflow-hidden relative z-10">
+                <div class="absolute top-10 left-5 right-5 z-30 flex flex-col gap-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h1 class="text-2xl font-bold text-atlas-blue tracking-wide">Universe</h1>
+                            <p class="text-gray-500 text-xs font-medium">Interactive Memory Map</p>
+                        </div>
+                        <button onclick="navigateTo('screen-home')" class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-700 m3-press pointer-events-auto shadow-soft border border-gray-100">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <!-- View Switcher Segmented Control -->
+                    <div class="flex bg-gray-200/70 p-1 rounded-2xl backdrop-blur-md border border-gray-200/80 self-center w-full max-w-xs shadow-sm">
+                        <button id="universeViewGraphBtn" onclick="switchUniverseView('graph')" class="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all bg-white text-atlas-blue shadow-sm flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-diagram-project"></i>
+                            <span>Graph View</span>
+                        </button>
+                        <button id="universeViewGlobeBtn" onclick="switchUniverseView('globe')" class="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-globe"></i>
+                            <span>Globe View</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 1st View: Graph Network View (Cosmic Star Map - Light Theme) -->
+                <div id="universe-graph" class="absolute inset-0 transition-all duration-300 overflow-hidden">
+                    <!-- Subtle background radial mesh -->
+                    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-500/5 via-atlas-surface to-atlas-surface"></div>
+
+                    <!-- Constellation Lines -->
+                    <svg class="absolute inset-0 w-full h-full opacity-40 pointer-events-none">
+                        <line x1="50%" y1="48%" x2="72%" y2="32%" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3,3" />
+                        <line x1="50%" y1="48%" x2="28%" y2="68%" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3,3" />
+                        <line x1="28%" y1="68%" x2="32%" y2="38%" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="3,3" />
+                        <line x1="50%" y1="48%" x2="32%" y2="38%" stroke="#9333EA" stroke-width="1.5" stroke-dasharray="3,3" />
+                        <line x1="72%" y1="32%" x2="80%" y2="58%" stroke="#EF4444" stroke-width="1.5" stroke-dasharray="3,3" />
+                        <line x1="32%" y1="38%" x2="45%" y2="25%" stroke="#0284C7" stroke-width="1.5" stroke-dasharray="3,3" />
+                    </svg>
+
+                    <!-- Cosmic Star Nodes (Light Theme) -->
+                    <!-- Center Star Node -->
+                    <div class="absolute flex flex-col items-center group cursor-pointer m3-press z-10" style="top: 48%; left: 50%; transform: translate(-50%, -50%);" onclick="navigateTo('screen-detail')">
+                        <div class="relative flex items-center justify-center">
+                            <div class="w-8 h-8 rounded-full bg-blue-500/20 animate-ping absolute"></div>
+                            <div class="w-3.5 h-3.5 rounded-full bg-blue-600 shadow-[0_0_12px_#2563eb] border-2 border-white"></div>
+                        </div>
+                        <span class="mt-2 text-[11px] font-semibold text-gray-800 tracking-wide bg-white/90 px-2.5 py-0.5 rounded-full border border-gray-200/80 shadow-soft">Linear Design</span>
+                    </div>
+
+                    <!-- Star 2 -->
+                    <div class="absolute flex flex-col items-center group cursor-pointer m3-press z-10" style="top: 32%; left: 72%; transform: translate(-50%, -50%);" onclick="selectGlobeNode(3)">
+                        <div class="relative flex items-center justify-center">
+                            <div class="w-2.5 h-2.5 rounded-full bg-purple-600 border-2 border-white shadow-sm"></div>
+                        </div>
+                        <span class="mt-1.5 text-[10px] font-medium text-gray-700 tracking-wide bg-white shadow-soft px-2 py-0.5 rounded-full border border-gray-100">Interview Notes</span>
+                    </div>
+
+                    <!-- Star 3 -->
+                    <div class="absolute flex flex-col items-center group cursor-pointer m3-press z-10" style="top: 68%; left: 28%; transform: translate(-50%, -50%);" onclick="selectGlobeNode(1)">
+                        <div class="relative flex items-center justify-center">
+                            <div class="w-3 h-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm"></div>
+                        </div>
+                        <span class="mt-1.5 text-[10px] font-medium text-gray-700 tracking-wide bg-white shadow-soft px-2 py-0.5 rounded-full border border-gray-100">Paneer Recipe</span>
+                    </div>
+
+                    <!-- Star 4 -->
+                    <div class="absolute flex flex-col items-center group cursor-pointer m3-press z-10" style="top: 38%; left: 32%; transform: translate(-50%, -50%);" onclick="selectGlobeNode(2)">
+                        <div class="relative flex items-center justify-center">
+                            <div class="w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-white shadow-sm"></div>
+                        </div>
+                        <span class="mt-1.5 text-[10px] font-medium text-gray-700 tracking-wide bg-white shadow-soft px-2 py-0.5 rounded-full border border-gray-100">Airbnb Receipt</span>
+                    </div>
+
+                    <!-- Star 5 -->
+                    <div class="absolute flex flex-col items-center group cursor-pointer m3-press z-10" style="top: 58%; left: 80%; transform: translate(-50%, -50%);" onclick="selectGlobeNode(4)">
+                        <div class="relative flex items-center justify-center">
+                            <div class="w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-white shadow-sm"></div>
+                        </div>
+                        <span class="mt-1.5 text-[10px] font-medium text-gray-700 tracking-wide bg-white shadow-soft px-2 py-0.5 rounded-full border border-gray-100">Nike Wishlist</span>
+                    </div>
+
+                    <!-- Star 6 -->
+                    <div class="absolute flex flex-col items-center group cursor-pointer m3-press z-10" style="top: 25%; left: 45%; transform: translate(-50%, -50%);" onclick="selectGlobeNode(5)">
+                        <div class="relative flex items-center justify-center">
+                            <div class="w-2 h-2 rounded-full bg-sky-500 border-2 border-white shadow-sm"></div>
+                        </div>
+                        <span class="mt-1.5 text-[10px] font-medium text-gray-700 tracking-wide bg-white shadow-soft px-2 py-0.5 rounded-full border border-gray-100">Tokyo Flight</span>
+                    </div>
+
+                    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-5 py-2 rounded-full text-gray-600 text-xs font-medium border border-gray-200/80 shadow-soft pointer-events-none flex items-center gap-2">
+                        <i class="fa-solid fa-sparkles text-amber-500 text-xs"></i>
+                        <span>Tap star nodes to explore memory details</span>
+                    </div>
+                </div>
+
+                <!-- 2nd View: Sphere / Globe View (Semi-Circle Dome Layout - Light Theme) -->
+                <div id="universe-globe-view" class="absolute inset-0 pt-28 pb-0 px-4 flex flex-col justify-between hidden transition-all duration-300">
+                    <!-- Top Content Detail Card -->
+                    <div id="globeDetailCard" class="w-full bg-white/90 backdrop-blur-xl border border-gray-200/80 rounded-3xl p-4 text-gray-900 shadow-float transition-all duration-300 min-h-[120px] flex flex-col justify-center z-20">
+                        <div class="flex items-center space-x-3 opacity-80">
+                            <div class="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-amber-500 animate-pulse border border-blue-100">
+                                <i class="fa-solid fa-globe"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-gray-900">Memory Globe Horizon</h4>
+                                <p class="text-xs text-gray-500">Tap nodes on the sphere surface to inspect saved items.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Semi-Circle Horizon Sphere Graphic Container -->
+                    <div class="relative w-full flex-1 flex flex-col items-center justify-end overflow-hidden -mb-4">
+                        <!-- Horizon Atmosphere Glow (Soft Light Gradient) -->
+                        <div class="absolute bottom-0 w-[130%] h-[280px] bg-gradient-to-t from-blue-500/15 via-purple-500/10 to-transparent rounded-t-full blur-2xl pointer-events-none"></div>
+                        
+                        <!-- Interactive 3D Sphere Canvas -->
+                        <canvas id="globeCanvas" class="w-full h-full cursor-grab active:cursor-grabbing z-10"></canvas>
+
+                        <div class="absolute bottom-6 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-gray-600 text-[11px] border border-gray-200/80 shadow-soft pointer-events-none z-20 flex items-center gap-2">
+                            <i class="fa-solid fa-arrows-spin text-blue-500"></i>
+                            <span>Drag to rotate globe • Tap memory nodes to inspect</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div> <!-- End Main Screen Area -->
+
+        <nav id="bottomNav" class="absolute bottom-0 left-0 right-0 h-24 bg-atlas-surface/80 backdrop-blur-xl border-t border-gray-100/50 px-8 flex items-start pt-4 justify-between z-40 hidden">
+            <button onclick="navigateTo('screen-home')" class="flex flex-col items-center text-atlas-blue transition m3-press w-12" id="nav-home">
+                <i class="fa-solid fa-house text-xl mb-1"></i>
+            </button>
+
+            <button onclick="navigateTo('screen-universe')" class="flex flex-col items-center text-gray-300 hover:text-gray-500 transition m3-press w-12" id="nav-universe">
+                <i class="fa-solid fa-atom text-xl mb-1"></i>
+            </button>
+
+            <!-- Hero FAB for Saving -->
+            <div class="relative -top-8">
+                <button onclick="triggerSimulatedShare()" class="w-16 h-16 rounded-[24px] bg-atlas-blue text-white flex items-center justify-center shadow-float m3-press">
+                    <i class="fa-solid fa-plus text-2xl"></i>
+                </button>
+            </div>
+
+            <button onclick="navigateTo('screen-needs-review')" class="flex flex-col items-center text-gray-300 hover:text-gray-500 transition m3-press w-12 relative" id="nav-review">
+                <i class="fa-solid fa-inbox text-xl mb-1"></i>
+                <span class="absolute top-0 right-1 w-2.5 h-2.5 bg-amber-500 border-2 border-atlas-surface rounded-full"></span>
+            </button>
+
+            <button onclick="navigateTo('screen-screenshot-review')" class="flex flex-col items-center text-gray-300 hover:text-gray-500 transition m3-press w-12 relative" id="nav-photos">
+                <i class="fa-regular fa-image text-xl mb-1"></i>
+                <span class="absolute top-0 right-1 w-2.5 h-2.5 bg-blue-500 border-2 border-atlas-surface rounded-full"></span>
+            </button>
+        </nav>
+
+    </main>
+
+    <script>
+        // Navigation Logic
+        function navigateTo(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.app-screen').forEach(s => {
+                s.classList.remove('active');
+            });
+
+            // Show selected screen
+            const target = document.getElementById(screenId);
+            if(target) target.classList.add('active');
+
+            // Sync debug select
+            const select = document.getElementById('screenSelect');
+            if(select) select.value = screenId;
+
+            // Manage Bottom Nav Visibility
+            const bottomNav = document.getElementById('bottomNav');
+            const hideNavScreens = ['screen-splash', 'screen-onboarding', 'screen-permissions', 'screen-share-process', 'screen-universe'];
+            
+            if (hideNavScreens.includes(screenId)) {
+                bottomNav.style.display = 'none';
+            } else {
+                bottomNav.style.display = 'flex';
+            }
+
+            // Update Nav Icons color
+            updateNavIcons(screenId);
+        }
+
+        function updateNavIcons(screenId) {
+            const icons = {
+                'screen-home': 'nav-home',
+                'screen-universe': 'nav-universe',
+                'screen-needs-review': 'nav-review',
+                'screen-screenshot-review': 'nav-photos'
+            };
+
+            document.querySelectorAll('#bottomNav button:not(.w-16)').forEach(btn => {
+                btn.classList.remove('text-atlas-blue');
+                btn.classList.add('text-gray-300');
+            });
+
+            const activeId = icons[screenId];
+            if(activeId) {
+                const btn = document.getElementById(activeId);
+                if(btn) {
+                    btn.classList.remove('text-gray-300');
+                    btn.classList.add('text-atlas-blue');
+                }
+            }
+        }
+
+        // Simulated AI Search interaction
+        function simulateSearch(val) {
+            const area = document.getElementById('searchResultsArea');
+            if (val.length > 2) {
+                area.classList.remove('hidden');
+                area.classList.add('flex');
+            } else {
+                area.classList.add('hidden');
+                area.classList.remove('flex');
+            }
+        }
+
+        // Simulated Share Extension Process
+        function triggerSimulatedShare() {
+            navigateTo('screen-share-process');
+            
+            const title = document.getElementById('process-title');
+            const subtitle = document.getElementById('process-subtitle');
+            const btn = document.getElementById('process-done-btn');
+            
+            // Reset state
+            title.innerText = "Understanding this...";
+            subtitle.innerText = "Extracting context and meaning.";
+            btn.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+
+            // Simulate AI working
+            setTimeout(() => {
+                title.innerText = "Finding what matters...";
+                subtitle.innerText = "Connecting to your knowledge graph.";
+            }, 1500);
+
+            setTimeout(() => {
+                title.innerText = "Saved.";
+                subtitle.innerText = "You'll always find it later.";
+                btn.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // Triage resolution animation
+        function resolveTriage(btn) {
+            const card = btn.closest('.bg-white');
+            card.style.transform = 'scale(0.95)';
+            card.style.opacity = '0';
+            card.style.transition = 'all 0.3s';
+            setTimeout(() => {
+                card.innerHTML = `<div class="py-8 text-center text-emerald-500 font-bold"><i class="fa-solid fa-check text-2xl mb-2"></i><br>Got it. Thanks!</div>`;
+                card.style.transform = 'scale(1)';
+                card.style.opacity = '1';
+                
+                setTimeout(()=> {
+                     navigateTo('screen-home');
+                }, 1500);
+            }, 300);
+        }
+
+        // Screenshot selection logic
+        function toggleSelect(el) {
+            const indicator = el.querySelector('.select-indicator');
+            const icon = indicator.querySelector('i');
+            
+            if (indicator.classList.contains('bg-emerald-500')) {
+                indicator.classList.remove('bg-emerald-500', 'border-emerald-500');
+                indicator.classList.add('border-white', 'bg-white/20');
+                icon.classList.add('opacity-0');
+            } else {
+                indicator.classList.add('bg-emerald-500', 'border-emerald-500');
+                indicator.classList.remove('border-white', 'bg-white/20');
+                icon.classList.remove('opacity-0');
+            }
+        }
+
+        // Clock update
+        function updateClock() {
+            const now = new Date();
+            let h = now.getHours();
+            let m = now.getMinutes();
+            document.getElementById('statusBarTime').innerText = `${h}:${m < 10 ? '0'+m : m}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Universe Sphere / Globe View Logic
+        let universeViewMode = 'graph';
+        let globeCanvas, globeCtx;
+        let globeAngleX = 0.2;
+        let globeAngleY = 0;
+        let isDraggingGlobe = false;
+        let lastMouseX = 0, lastMouseY = 0;
+        let globeAnimationId = null;
+
+        const sphereMemories = [
+            { id: 0, title: "Linear Design System Guidelines", category: "Work & UI", icon: "fa-briefcase", color: "#60A5FA", preview: "Keyboard-first navigation & high contrast guidelines.", date: "Saved 2h ago" },
+            { id: 1, title: "Paneer Tikka Recipe", category: "Recipe & Cooking", icon: "fa-utensils", color: "#34D399", preview: "Yogurt marinade with roasted capsicum and spices.", date: "Saved yesterday" },
+            { id: 2, title: "Airbnb Booking Receipt", category: "Travel & Finance", icon: "fa-receipt", color: "#FBBF24", preview: "Confirmed booking for Goa beachside villa.", date: "Saved 3d ago" },
+            { id: 3, title: "Interview Prep Notes", category: "Career", icon: "fa-file-lines", color: "#C084FC", preview: "System design tradeoffs & behavioral stories.", date: "Saved 4d ago" },
+            { id: 4, title: "Nike Air Max Wishlist", category: "Shopping", icon: "fa-bag-shopping", color: "#F87171", preview: "Colorway details & price tracking alert.", date: "Saved 1w ago" },
+            { id: 5, title: "Tokyo Flight Itinerary", category: "Travel", icon: "fa-plane", color: "#38BDF8", preview: "Haneda Airport layover & flight schedule.", date: "Saved 2w ago" }
+        ];
+
+        // 3D spherical positions (lat/lng in radians)
+        const sphereNodes = [
+            { lat: 0.3, lng: 0.5, memory: sphereMemories[0] },
+            { lat: -0.4, lng: 1.8, memory: sphereMemories[1] },
+            { lat: 0.6, lng: 3.2, memory: sphereMemories[2] },
+            { lat: -0.2, lng: 4.5, memory: sphereMemories[3] },
+            { lat: 0.5, lng: 5.4, memory: sphereMemories[4] },
+            { lat: -0.6, lng: 2.5, memory: sphereMemories[5] }
+        ];
+
+        let activeSelectedNodeIndex = -1;
+
+        function switchUniverseView(mode) {
+            universeViewMode = mode;
+            const graphView = document.getElementById('universe-graph');
+            const globeView = document.getElementById('universe-globe-view');
+            const graphBtn = document.getElementById('universeViewGraphBtn');
+            const globeBtn = document.getElementById('universeViewGlobeBtn');
+
+            if (mode === 'graph') {
+                graphView.classList.remove('hidden');
+                globeView.classList.add('hidden');
+                graphBtn.className = "flex-1 py-1.5 rounded-xl text-xs font-bold transition-all bg-white text-atlas-blue shadow-sm flex items-center justify-center gap-2";
+                globeBtn.className = "flex-1 py-1.5 rounded-xl text-xs font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center justify-center gap-2";
+            } else {
+                graphView.classList.add('hidden');
+                globeView.classList.remove('hidden');
+                globeBtn.className = "flex-1 py-1.5 rounded-xl text-xs font-bold transition-all bg-white text-atlas-blue shadow-sm flex items-center justify-center gap-2";
+                graphBtn.className = "flex-1 py-1.5 rounded-xl text-xs font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center justify-center gap-2";
+                
+                initGlobeCanvas();
+            }
+        }
+
+        function initGlobeCanvas() {
+            globeCanvas = document.getElementById('globeCanvas');
+            if (!globeCanvas) return;
+            globeCtx = globeCanvas.getContext('2d');
+
+            const dpr = window.devicePixelRatio || 1;
+            const rect = globeCanvas.getBoundingClientRect();
+            globeCanvas.width = rect.width * dpr;
+            globeCanvas.height = rect.height * dpr;
+            globeCtx.scale(dpr, dpr);
+
+            // Add interaction handlers
+            globeCanvas.onmousedown = (e) => startDragGlobe(e.clientX, e.clientY);
+            globeCanvas.onmousemove = (e) => dragGlobe(e.clientX, e.clientY);
+            window.onmouseup = () => stopDragGlobe();
+
+            globeCanvas.ontouchstart = (e) => {
+                if (e.touches.length === 1) startDragGlobe(e.touches[0].clientX, e.touches[0].clientY);
+            };
+            globeCanvas.ontouchmove = (e) => {
+                if (e.touches.length === 1) dragGlobe(e.touches[0].clientX, e.touches[0].clientY);
+            };
+            globeCanvas.ontouchend = () => stopDragGlobe();
+
+            globeCanvas.onclick = handleGlobeClick;
+
+            if (!globeAnimationId) {
+                animateGlobe();
+            }
+        }
+
+        function startDragGlobe(x, y) {
+            isDraggingGlobe = true;
+            lastMouseX = x;
+            lastMouseY = y;
+        }
+
+        function dragGlobe(x, y) {
+            if (!isDraggingGlobe) return;
+            const dx = x - lastMouseX;
+            const dy = y - lastMouseY;
+            globeAngleY += dx * 0.008;
+            globeAngleX += dy * 0.008;
+            // Clamp pitch to avoid full inversion
+            globeAngleX = Math.max(-1.2, Math.min(1.2, globeAngleX));
+            lastMouseX = x;
+            lastMouseY = y;
+        }
+
+        function stopDragGlobe() {
+            isDraggingGlobe = false;
+        }
+
+        function selectGlobeNode(index) {
+            activeSelectedNodeIndex = index;
+            const memory = sphereMemories[index];
+            const card = document.getElementById('globeDetailCard');
+            if (!card || !memory) return;
+
+            card.innerHTML = `
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-lg text-white shadow-md shrink-0" style="background-color: ${memory.color};">
+                            <i class="fa-solid ${memory.icon}"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">${memory.category}</span>
+                            <h4 class="font-extrabold text-base text-gray-900 mt-0.5 leading-tight">${memory.title}</h4>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-600 mt-2 font-medium line-clamp-2">${memory.preview}</p>
+                <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-2.5">
+                    <span class="text-[11px] text-gray-400 font-medium">${memory.date}</span>
+                    <button onclick="navigateTo('screen-detail')" class="px-3.5 py-1.5 bg-atlas-blue text-white rounded-xl font-bold text-xs m3-press shadow-md flex items-center gap-1.5">
+                        <span>Inspect Memory</span>
+                        <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        function handleGlobeClick(e) {
+            if (!globeCanvas) return;
+            const rect = globeCanvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            const width = rect.width;
+            const height = rect.height;
+            const radius = Math.min(width, height) * 0.72;
+            const centerX = width / 2;
+            const centerY = height * 0.82;
+
+            let closestIndex = -1;
+            let minDistance = 32; // Target click area
+
+            sphereNodes.forEach((node, idx) => {
+                const cosX = Math.cos(globeAngleX), sinX = Math.sin(globeAngleX);
+                const cosY = Math.cos(globeAngleY + node.lng), sinY = Math.sin(globeAngleY + node.lng);
+                const cosLat = Math.cos(node.lat), sinLat = Math.sin(node.lat);
+
+                let x = radius * cosLat * sinY;
+                let y = radius * (sinLat * cosX - cosLat * sinX * cosY);
+                let z = radius * (sinLat * sinX + cosLat * cosX * cosY);
+
+                if (z > -radius * 0.2) { 
+                    const screenX = centerX + x;
+                    const screenY = centerY - y;
+                    const dist = Math.hypot(clickX - screenX, clickY - screenY);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closestIndex = idx;
+                    }
+                }
+            });
+
+            if (closestIndex !== -1) {
+                selectGlobeNode(closestIndex);
+            }
+        }
+
+        function animateGlobe() {
+            if (!isDraggingGlobe && universeViewMode === 'globe') {
+                globeAngleY += 0.0025; // Gentle rotation speed
+            }
+
+            if (globeCtx && globeCanvas && universeViewMode === 'globe') {
+                const rect = globeCanvas.getBoundingClientRect();
+                const width = rect.width;
+                const height = rect.height;
+                
+                // Position sphere as a large semi-circle rising from bottom
+                const radius = Math.min(width, height) * 0.72;
+                const centerX = width / 2;
+                const centerY = height * 0.82;
+
+                globeCtx.clearRect(0, 0, width, height);
+
+                // Outer Atmosphere Glow Arc around Horizon
+                const glowGradient = globeCtx.createRadialGradient(centerX, centerY, radius * 0.8, centerX, centerY, radius * 1.08);
+                glowGradient.addColorStop(0, "rgba(59, 130, 246, 0.08)");
+                glowGradient.addColorStop(0.8, "rgba(147, 51, 234, 0.04)");
+                glowGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+                
+                globeCtx.beginPath();
+                globeCtx.arc(centerX, centerY, radius * 1.08, 0, Math.PI * 2);
+                globeCtx.fillStyle = glowGradient;
+                globeCtx.fill();
+
+                // Draw Latitude / Longitude 3D Wireframe Mesh
+                globeCtx.strokeStyle = "rgba(15, 23, 42, 0.08)";
+                globeCtx.lineWidth = 1;
+
+                for (let lat = -0.7; lat <= 0.7; lat += 0.35) {
+                    globeCtx.beginPath();
+                    for (let lng = 0; lng <= Math.PI * 2; lng += 0.1) {
+                        const cosX = Math.cos(globeAngleX), sinX = Math.sin(globeAngleX);
+                        const cosY = Math.cos(globeAngleY + lng), sinY = Math.sin(globeAngleY + lng);
+                        const cosLat = Math.cos(lat), sinLat = Math.sin(lat);
+
+                        let x = radius * cosLat * sinY;
+                        let y = radius * (sinLat * cosX - cosLat * sinX * cosY);
+                        let z = radius * (sinLat * sinX + cosLat * cosX * cosY);
+
+                        if (z > -radius * 0.2) {
+                            const screenX = centerX + x;
+                            const screenY = centerY - y;
+                            if (lng === 0) globeCtx.moveTo(screenX, screenY);
+                            else globeCtx.lineTo(screenX, screenY);
+                        }
+                    }
+                    globeCtx.stroke();
+                }
+
+                // Draw Horizon Dome Perimeter Line
+                globeCtx.beginPath();
+                globeCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                globeCtx.strokeStyle = "rgba(15, 23, 42, 0.15)";
+                globeCtx.lineWidth = 1.5;
+                globeCtx.stroke();
+
+                // Draw Memory Star Nodes on Sphere Surface
+                sphereNodes.forEach((node, idx) => {
+                    const cosX = Math.cos(globeAngleX), sinX = Math.sin(globeAngleX);
+                    const cosY = Math.cos(globeAngleY + node.lng), sinY = Math.sin(globeAngleY + node.lng);
+                    const cosLat = Math.cos(node.lat), sinLat = Math.sin(node.lat);
+
+                    let x = radius * cosLat * sinY;
+                    let y = radius * (sinLat * cosX - cosLat * sinX * cosY);
+                    let z = radius * (sinLat * sinX + cosLat * cosX * cosY);
+
+                    const scale = (z + radius) / (2 * radius);
+                    const alpha = Math.max(0.2, Math.min(1, (z + radius * 0.3) / (1.3 * radius)));
+
+                    const screenX = centerX + x;
+                    const screenY = centerY - y;
+
+                    if (z > -radius * 0.25) {
+                        const isSelected = activeSelectedNodeIndex === idx;
+
+                        // Outer Pulse Glow for Selected Item
+                        if (isSelected) {
+                            globeCtx.beginPath();
+                            globeCtx.arc(screenX, screenY, 20 * scale, 0, Math.PI * 2);
+                            globeCtx.fillStyle = node.memory.color + "22";
+                            globeCtx.fill();
+                            globeCtx.strokeStyle = node.memory.color;
+                            globeCtx.lineWidth = 2;
+                            globeCtx.stroke();
+                        }
+
+                        // Constellation link to sphere center
+                        globeCtx.beginPath();
+                        globeCtx.moveTo(centerX, centerY);
+                        globeCtx.lineTo(screenX, screenY);
+                        globeCtx.strokeStyle = node.memory.color + (isSelected ? "66" : "25");
+                        globeCtx.lineWidth = isSelected ? 1.5 : 0.8;
+                        globeCtx.stroke();
+
+                        // Star Dot Node
+                        globeCtx.beginPath();
+                        globeCtx.arc(screenX, screenY, (isSelected ? 7 : 4.5) * scale, 0, Math.PI * 2);
+                        globeCtx.fillStyle = node.memory.color;
+                        globeCtx.globalAlpha = alpha;
+                        globeCtx.fill();
+
+                        // White Core Glow
+                        globeCtx.beginPath();
+                        globeCtx.arc(screenX, screenY, 2 * scale, 0, Math.PI * 2);
+                        globeCtx.fillStyle = "#FFFFFF";
+                        globeCtx.fill();
+                        globeCtx.globalAlpha = 1.0;
+
+                        // Text Tag
+                        globeCtx.font = `${isSelected ? 'bold 11px' : '10px'} Outfit, sans-serif`;
+                        globeCtx.fillStyle = isSelected ? "#0F172A" : "rgba(30, 41, 59, 0.8)";
+                        globeCtx.textAlign = "center";
+                        globeCtx.fillText(node.memory.title.split(' ')[0], screenX, screenY + (isSelected ? 22 : 18));
+                    }
+                });
+            }
+
+            globeAnimationId = requestAnimationFrame(animateGlobe);
+        }
+
+        // Initial setup
+        window.onload = () => {
+            // Start on splash, transition to onboarding automatically for demo purposes
+            setTimeout(() => {
+                navigateTo('screen-onboarding');
+            }, 2500);
+        };
+    </script>
+</body>
+</html>
