@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/memory_item.dart';
 
@@ -11,6 +14,9 @@ class MemoryProvider extends ChangeNotifier {
   String _processingTitle = "Understanding this...";
   String _processingSubtitle = "Extracting context and meaning.";
   bool _processingCompleted = false;
+
+  List<SharedMediaFile> _pendingFiles = [];
+  String _pendingQuickNote = '';
 
   // Real Device Screenshots from photo_manager
   List<AssetEntity> _deviceScreenshots = [];
@@ -165,6 +171,10 @@ class MemoryProvider extends ChangeNotifier {
         for (var itemMap in list) {
           final String id = itemMap['id'] ?? '';
           if (!_memories.any((m) => m.id == id)) {
+            final type = MemoryType.values.firstWhere(
+              (t) => t.name == (itemMap['type'] ?? ''),
+              orElse: () => MemoryType.screenshot,
+            );
             _memories.insert(
               0,
               MemoryItem(
@@ -172,10 +182,12 @@ class MemoryProvider extends ChangeNotifier {
                 title: itemMap['title'] ?? 'Saved Screenshot',
                 subtitle: itemMap['subtitle'] ?? 'Screenshot • Gallery',
                 sourceApp: itemMap['sourceApp'] ?? 'Photos',
-                type: MemoryType.screenshot,
+                type: type,
                 savedAt: DateTime.tryParse(itemMap['savedAt'] ?? '') ?? DateTime.now(),
                 aiSummary: itemMap['aiSummary'] ?? 'Saved screenshot in ATLAS Memory Space.',
                 category: itemMap['category'] ?? 'Screenshots',
+                url: itemMap['url'],
+                snippet: itemMap['snippet'],
                 imagePath: itemMap['imagePath'],
                 iconBgColor: Color(itemMap['iconBgColor'] ?? 0xFFECFDF5),
                 iconData: _getIconData(itemMap['iconDataCode']),
@@ -197,15 +209,22 @@ class MemoryProvider extends ChangeNotifier {
       await prefs.setStringList('permittedScreenshotIds', _permittedScreenshotIds);
 
       final customList = _memories
-          .where((m) => m.id.startsWith('real_shot_') || m.id.startsWith('shot_mem_'))
+          .where((m) =>
+              m.id.startsWith('real_shot_') ||
+              m.id.startsWith('shot_mem_') ||
+              m.id.startsWith('shared_') ||
+              m.id.startsWith('manual_'))
           .map((m) => {
                 'id': m.id,
                 'title': m.title,
                 'subtitle': m.subtitle,
                 'sourceApp': m.sourceApp,
+                'type': m.type.name,
                 'savedAt': m.savedAt.toIso8601String(),
                 'aiSummary': m.aiSummary,
                 'category': m.category,
+                'url': m.url,
+                'snippet': m.snippet,
                 'imagePath': m.imagePath,
                 'iconBgColor': m.iconBgColor.value,
                 'iconDataCode': m.iconData.codePoint,
@@ -224,6 +243,12 @@ class MemoryProvider extends ChangeNotifier {
     if (codePoint == Icons.flight_takeoff_rounded.codePoint) return Icons.flight_takeoff_rounded;
     if (codePoint == Icons.palette_rounded.codePoint) return Icons.palette_rounded;
     if (codePoint == Icons.code_rounded.codePoint) return Icons.code_rounded;
+    if (codePoint == Icons.link_rounded.codePoint) return Icons.link_rounded;
+    if (codePoint == Icons.notes_rounded.codePoint) return Icons.notes_rounded;
+    if (codePoint == Icons.share_rounded.codePoint) return Icons.share_rounded;
+    if (codePoint == Icons.image_rounded.codePoint) return Icons.image_rounded;
+    if (codePoint == Icons.picture_as_pdf_rounded.codePoint) return Icons.picture_as_pdf_rounded;
+    if (codePoint == Icons.insert_drive_file_rounded.codePoint) return Icons.insert_drive_file_rounded;
     return Icons.image_rounded;
   }
 
@@ -418,7 +443,50 @@ class MemoryProvider extends ChangeNotifier {
     }
   }
 
-  void simulateShareProcessing({required String titleText, required VoidCallback onDone}) async {
+  void startSharedContentProcessing(List<SharedMediaFile> files) {
+    _pendingFiles = List.of(files);
+    _pendingQuickNote = '';
+    _runShareProcessing();
+  }
+
+  void startQuickSaveProcessing(String note) {
+    _pendingFiles = [];
+    _pendingQuickNote = note;
+    _runShareProcessing();
+  }
+
+  void addMemoryManually({
+    required String content,
+    String? url,
+    String category = 'Uncategorized',
+  }) {
+    final trimmed = content.trim();
+    final trimmedUrl = url?.trim() ?? '';
+    final isLink = trimmedUrl.isNotEmpty;
+
+    _memories.insert(
+      0,
+      MemoryItem(
+        id: 'manual_${DateTime.now().microsecondsSinceEpoch}',
+        title: isLink ? _linkTitle(trimmedUrl) : _textTitle(trimmed),
+        subtitle: isLink ? trimmedUrl : 'Note • Just Now',
+        sourceApp: 'Atlas',
+        type: isLink ? MemoryType.link : MemoryType.note,
+        savedAt: DateTime.now(),
+        aiSummary: trimmed.isEmpty ? trimmedUrl : trimmed,
+        category: category,
+        url: isLink ? trimmedUrl : null,
+        snippet: isLink ? trimmed : null,
+        iconBgColor: isLink ? const Color(0xFFEFF6FF) : const Color(0xFFF5F3FF),
+        iconData: isLink ? Icons.link_rounded : Icons.notes_rounded,
+      ),
+    );
+    _savePreferences();
+    notifyListeners();
+  }
+
+  Future<void> _runShareProcessing() async {
+    if (_isProcessingShare) return;
     _isProcessingShare = true;
     _processingCompleted = false;
     _processingTitle = "Understanding this...";
@@ -426,32 +494,170 @@ class MemoryProvider extends ChangeNotifier {
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 1500));
-    _processingTitle = "Finding what matters...";
-    _processingSubtitle = "Connecting to your knowledge graph.";
-    notifyListeners();
+    if (_pendingFiles.isNotEmpty || _pendingQuickNote.isNotEmpty) {
+      _processingTitle = "Finding what matters...";
+      _processingSubtitle = "Connecting to your knowledge graph.";
+      notifyListeners();
+    }
 
     await Future.delayed(const Duration(milliseconds: 1500));
+    _saveIncomingContent();
+
     _processingTitle = "Saved.";
     _processingSubtitle = "You'll always find it later in ATLAS.";
     _processingCompleted = true;
-
-    _memories.insert(
-      0,
-      MemoryItem(
-        id: 'shared_${DateTime.now().millisecondsSinceEpoch}',
-        title: titleText.isNotEmpty ? titleText : 'Shared Content from External App',
-        subtitle: 'Shared via Send To • Just Now',
-        sourceApp: 'Shared Intent',
-        type: MemoryType.link,
-        savedAt: DateTime.now(),
-        aiSummary: 'Content received via system Send To list. Extracted links and text content.',
-        category: 'Shared',
-        iconBgColor: const Color(0xFFEFF6FF),
-        iconData: Icons.share_rounded,
-      ),
-    );
-
     notifyListeners();
+  }
+
+  Future<void> _saveIncomingContent() async {
+    if (_pendingFiles.isNotEmpty) {
+      for (final file in _pendingFiles) {
+        _memories.insert(0, await _buildSharedMemory(file));
+      }
+    } else if (_pendingQuickNote.isNotEmpty) {
+      final note = _pendingQuickNote;
+      _memories.insert(
+        0,
+        MemoryItem(
+          id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
+          title: _textTitle(note),
+          subtitle: 'Quick Note • Just Now',
+          sourceApp: 'Atlas',
+          type: MemoryType.note,
+          savedAt: DateTime.now(),
+          aiSummary: 'Quick note saved into ATLAS Memory Space.',
+          category: 'Shared',
+          snippet: note,
+          iconBgColor: const Color(0xFFF5F3FF),
+          iconData: Icons.notes_rounded,
+        ),
+      );
+    }
+    _pendingFiles = [];
+    _pendingQuickNote = '';
+    _savePreferences();
+  }
+
+  Future<MemoryItem> _buildSharedMemory(SharedMediaFile file) async {
+    final savedAt = DateTime.now();
+    final rawPath = file.path.trim();
+
+    if (file.type == SharedMediaType.url || file.type == SharedMediaType.text) {
+      final url = _extractUrl(rawPath);
+      if (url != null) {
+        return MemoryItem(
+          id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
+          title: _linkTitle(url),
+          subtitle: url,
+          sourceApp: 'Shared Link',
+          type: MemoryType.link,
+          savedAt: savedAt,
+          aiSummary: 'Saved from another app. Tap to open the original page.',
+          category: 'Shared',
+          url: url,
+          snippet: rawPath,
+          iconBgColor: const Color(0xFFEFF6FF),
+          iconData: Icons.link_rounded,
+        );
+      }
+      return MemoryItem(
+        id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
+        title: _textTitle(rawPath),
+        subtitle: 'Text • Shared',
+        sourceApp: 'Shared Text',
+        type: MemoryType.note,
+        savedAt: savedAt,
+        aiSummary: 'Text snippet saved from another app.',
+        category: 'Shared',
+        snippet: rawPath,
+        iconBgColor: const Color(0xFFF5F3FF),
+        iconData: Icons.notes_rounded,
+      );
+    }
+
+    if (file.type == SharedMediaType.image || file.type == SharedMediaType.video) {
+      final savedPath = await _copySharedFileToStorage(file.path);
+      return MemoryItem(
+        id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
+        title: file.type == SharedMediaType.image ? 'Shared Image' : 'Shared Video',
+        subtitle: 'Media • Shared',
+        sourceApp: 'Shared Media',
+        type: MemoryType.screenshot,
+        savedAt: savedAt,
+        aiSummary: file.type == SharedMediaType.image
+            ? 'Image shared from another app and saved into ATLAS.'
+            : 'Video shared from another app and saved into ATLAS.',
+        category: 'Shared',
+        imagePath: savedPath,
+        iconBgColor: const Color(0xFFECFDF5),
+        iconData: Icons.image_rounded,
+      );
+    }
+
+    return MemoryItem(
+      id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
+      title: _fileNameFromPath(file.path),
+      subtitle: 'File • Shared',
+      sourceApp: 'Shared',
+      type: MemoryType.pdf,
+      savedAt: savedAt,
+      aiSummary: 'File shared from another app and saved into ATLAS.',
+      category: 'Shared',
+      snippet: file.path,
+      iconBgColor: const Color(0xFFF3F4F6),
+      iconData: Icons.insert_drive_file_rounded,
+    );
+  }
+
+  String? _extractUrl(String text) {
+    final match = RegExp(r'(https?://[^\s<>"()]+|www\.[^\s<>"()]+)').firstMatch(text);
+    if (match == null) return null;
+    var url = match.group(0)!.replaceAll(RegExp(r'[),.;!?]+$'), '');
+    if (url.startsWith('www.')) url = 'https://$url';
+    return url;
+  }
+
+  String _linkTitle(String url) {
+    try {
+      final uri = Uri.parse(url);
+      final host = uri.host.isEmpty ? url : uri.host;
+      return host.startsWith('www.') ? host.substring(4) : host;
+    } catch (_) {
+      return url;
+    }
+  }
+
+  String _textTitle(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return 'Shared Text';
+    var title = trimmed.split('\n').first.trim();
+    if (title.length > 60) title = '${title.substring(0, 57)}...';
+    return title.isEmpty ? 'Shared Text' : title;
+  }
+
+  String _fileNameFromPath(String? path) {
+    if (path == null || path.isEmpty) return 'Shared File';
+    final segments = path.split(RegExp(r'[/\\]'));
+    final name = segments.last;
+    return name.isEmpty ? 'Shared File' : name;
+  }
+
+  Future<String?> _copySharedFileToStorage(String? sourcePath) async {
+    if (sourcePath == null || sourcePath.isEmpty) return sourcePath;
+    try {
+      final src = File(sourcePath);
+      if (!src.existsSync()) return sourcePath;
+      final dir = await getApplicationDocumentsDirectory();
+      final savedDir = Directory('${dir.path}/shared_media');
+      if (!savedDir.existsSync()) savedDir.createSync(recursive: true);
+      final fileName = 'shared_${DateTime.now().microsecondsSinceEpoch}_${src.uri.pathSegments.last}';
+      final dest = File('${savedDir.path}/$fileName');
+      await src.copy(dest.path);
+      return dest.path;
+    } catch (e) {
+      debugPrint("Error copying shared file: $e");
+      return sourcePath;
+    }
   }
 
   void resetShareProcessing() {

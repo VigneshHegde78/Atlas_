@@ -1,14 +1,12 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import '../providers/memory_provider.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'universe_screen.dart';
 import 'needs_review_screen.dart';
 import 'screenshot_review_screen.dart';
-import 'share_processing_screen.dart';
+import 'add_memory_sheet.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -19,7 +17,6 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
-  StreamSubscription? _intentDataStreamSubscription;
 
   final List<Widget> _screens = const [
     HomeScreen(),
@@ -28,47 +25,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ScreenshotReviewScreen(),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _initShareIntentListener();
-  }
-
-  void _initShareIntentListener() {
-    _intentDataStreamSubscription = ReceiveSharingIntent.instance.getMediaStream().listen((value) {
-      if (value.isNotEmpty && mounted) {
-        _triggerShareModal(value.first.path);
-      }
-    }, onError: (err) {
-      debugPrint("Sharing intent error: $err");
-    });
-
-    ReceiveSharingIntent.instance.getInitialMedia().then((value) {
-      if (value.isNotEmpty && mounted) {
-        _triggerShareModal(value.first.path);
-      }
-    });
-  }
-
-  void _triggerShareModal([String sharedText = '']) {
-    final provider = Provider.of<MemoryProvider>(context, listen: false);
-    provider.simulateShareProcessing(
-      titleText: sharedText.isNotEmpty ? sharedText : 'Shared Item',
-      onDone: () {},
+  void _openAddMemory() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const AddMemorySheet(),
     );
-
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: false,
-        pageBuilder: (context, animation, secondaryAnimation) => const ShareProcessingScreen(),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _intentDataStreamSubscription?.cancel();
-    super.dispose();
   }
 
   @override
@@ -186,7 +149,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               Positioned(
                 top: 0,
                 child: GestureDetector(
-                  onTap: () => _triggerShareModal('Quick Save Note'),
+                  onTap: _openAddMemory,
                   child: Container(
                     width: 62,
                     height: 62,
