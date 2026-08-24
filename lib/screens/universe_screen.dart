@@ -7,7 +7,7 @@ import '../theme/app_theme.dart';
 import 'detail_screen.dart';
 import 'search_screen.dart';
 
-/// Stable category accent colors used across pins, cards, and constellation star nodes.
+/// Stable category accent colors used across pins and cards.
 class AtlasCategory {
   static const Map<String, Color> _colors = {
     'Design Systems': Color(0xFF3B82F6),
@@ -109,8 +109,6 @@ class UniverseScreen extends StatefulWidget {
 class _UniverseScreenState extends State<UniverseScreen> {
   String? _selectedCategory;
   int _currentCardIndex = 0;
-  String _activeTab = 'universe'; // 'globe' or 'universe'
-  String? _selectedNodeId;
 
   double _pinLat(String category) {
     final hash = category.hashCode & 0x7fffffff;
@@ -166,14 +164,14 @@ class _UniverseScreenState extends State<UniverseScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Filter Memories',
+                'Filter Memories by Category',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF0F172A),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -220,6 +218,15 @@ class _UniverseScreenState extends State<UniverseScreen> {
     );
   }
 
+  String _getLocationText(List<MemoryItem> filteredMemories) {
+    if (filteredMemories.isEmpty) return 'Global Memory Space';
+    final item = filteredMemories[_currentCardIndex % filteredMemories.length];
+    if (item.subtitle.isNotEmpty && !item.subtitle.contains('http')) {
+      return item.subtitle;
+    }
+    return '${item.category} • Atlas';
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<MemoryProvider>(context);
@@ -229,137 +236,141 @@ class _UniverseScreenState extends State<UniverseScreen> {
         ? provider.memories
         : provider.memories.where((m) => m.category == _selectedCategory).toList();
 
-    final isUniverseMode = _activeTab == 'universe';
-
     return Scaffold(
-      backgroundColor: isUniverseMode ? const Color(0xFF424242) : const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Minimal Heading & Subheading Header for Globe or Universe mode
-            _buildTopHeader(
-              isUniverseMode: isUniverseMode,
-              pins: pins,
-              totalMemories: provider.memories.length,
-            ),
+            // Top Clean Header
+            _buildTopHeader(pins: pins, totalMemories: provider.memories.length),
             const SizedBox(height: 10),
 
-            if (!isUniverseMode) ...[
-              // Sub-header: Location Chip & Card Count Badge for Globe View
-              _buildContextBar(
-                location: _getLocationText(filteredMemories),
-                currentIndex: filteredMemories.isEmpty ? 0 : (_currentCardIndex % filteredMemories.length),
-                totalCards: filteredMemories.length,
-              ),
-              const SizedBox(height: 12),
-            ],
+            // Sub-header: Location Chip & Card Count Badge
+            _buildContextBar(
+              location: _getLocationText(filteredMemories),
+              currentIndex: filteredMemories.isEmpty ? 0 : (_currentCardIndex % filteredMemories.length),
+              totalCards: filteredMemories.length,
+            ),
+            const SizedBox(height: 12),
 
-            // Middle Main Content Area
-            Expanded(
-              child: Stack(
-                children: [
-                  if (isUniverseMode)
-                    // Constellation View in Grey[800]
-                    Positioned.fill(
-                      child: ConstellationUniverseView(
-                        memories: provider.memories,
-                        selectedCategory: _selectedCategory,
-                        selectedNodeId: _selectedNodeId,
-                        onCategorySelected: (cat) {
-                          setState(() {
-                            _selectedCategory = cat;
-                            _selectedNodeId = null;
-                          });
-                        },
-                        onNodeSelected: (nodeId) {
-                          setState(() {
-                            _selectedNodeId = nodeId;
-                          });
-                        },
+            // Active category indicator if filtered
+            if (_selectedCategory != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AtlasCategory.color(_selectedCategory!).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    )
-                  else ...[
-                    // 3D Globe Dome in Lower Half
-                    Positioned.fill(
-                      child: UniverseGlobe(
-                        pins: pins,
-                        selectedCategory: _selectedCategory,
-                        onSelect: (category) {
-                          setState(() {
-                            _selectedCategory = category;
-                            _currentCardIndex = 0;
-                          });
-                        },
-                      ),
-                    ),
-
-                    // Floating Card Exploration Deck in Upper Half (Compact height)
-                    Positioned(
-                      left: 20,
-                      right: 20,
-                      top: 0,
-                      height: 275,
-                      child: MemoryCardDeck(
-                        items: filteredMemories,
-                        currentIndex: _currentCardIndex,
-                        onIndexChanged: (idx) {
-                          setState(() => _currentCardIndex = idx);
-                        },
-                      ),
-                    ),
-
-                    // Floating Drag Instruction Pill
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 72,
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.94),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.06),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Category: $_selectedCategory',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AtlasCategory.color(_selectedCategory!),
+                            ),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.swap_horiz_rounded,
-                                size: 16,
-                                color: Color(0xFF475569),
-                              ),
-                              SizedBox(width: 6),
-                              Text(
-                                'Drag or swipe globe to explore',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF475569),
-                                ),
-                              ),
-                            ],
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedCategory = null;
+                                _currentCardIndex = 0;
+                              });
+                            },
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 14,
+                              color: AtlasCategory.color(_selectedCategory!),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ],
+                ),
+              ),
 
-                  // Floating Capsule Bottom Navigation Toggle
+            // Middle Main Content Area (Globe Dome + Floating Card Deck)
+            Expanded(
+              child: Stack(
+                children: [
+                  // 3D Globe Dome in Lower Half
+                  Positioned.fill(
+                    child: UniverseGlobe(
+                      pins: pins,
+                      selectedCategory: _selectedCategory,
+                      onSelect: (category) {
+                        setState(() {
+                          _selectedCategory = category;
+                          _currentCardIndex = 0;
+                        });
+                      },
+                    ),
+                  ),
+
+                  // Floating Card Exploration Deck in Upper Half
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    top: 0,
+                    height: 275,
+                    child: MemoryCardDeck(
+                      items: filteredMemories,
+                      currentIndex: _currentCardIndex,
+                      onIndexChanged: (idx) {
+                        setState(() => _currentCardIndex = idx);
+                      },
+                    ),
+                  ),
+
+                  // Floating Drag Instruction Pill
                   Positioned(
                     left: 0,
                     right: 0,
-                    bottom: 12,
+                    bottom: 24,
                     child: Center(
-                      child: _buildBottomCapsuleToggle(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.95),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.swap_horiz_rounded,
+                              size: 16,
+                              color: Color(0xFF475569),
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Drag or rotate globe to explore pins',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -371,54 +382,36 @@ class _UniverseScreenState extends State<UniverseScreen> {
     );
   }
 
-  String _getLocationText(List<MemoryItem> filteredMemories) {
-    if (filteredMemories.isEmpty) return 'Giza Plateau, Egypt';
-    final item = filteredMemories[_currentCardIndex % filteredMemories.length];
-    if (item.subtitle.isNotEmpty && !item.subtitle.contains('http')) {
-      return item.subtitle;
-    }
-    return '${item.category} Explore';
-  }
-
   Widget _buildTopHeader({
-    required bool isUniverseMode,
     required List<GlobePinData> pins,
     required int totalMemories,
   }) {
-    final heading = isUniverseMode ? 'The Universe' : 'Globe Explorer';
-    final subheading = isUniverseMode
-        ? 'Explore your memory constellations'
-        : 'Your memories pinned around the world';
-
-    final headingColor = isUniverseMode ? Colors.white : const Color(0xFF0F172A);
-    final subheadingColor = isUniverseMode ? const Color(0xFFD1D5DB) : const Color(0xFF64748B);
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
       child: Row(
         children: [
           // Title & Sub-header Text
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  heading,
+                  'Globe Explorer',
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    color: headingColor,
+                    color: Color(0xFF0F172A),
                     letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
-                  subheading,
+                  'Your memories pinned around the world',
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: subheadingColor,
+                    color: Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -429,7 +422,6 @@ class _UniverseScreenState extends State<UniverseScreen> {
           _buildCircleActionButton(
             icon: Icons.tune_rounded,
             onTap: () => _showFilterModal(pins, totalMemories),
-            isDark: isUniverseMode,
           ),
           const SizedBox(width: 8),
           _buildCircleActionButton(
@@ -439,7 +431,6 @@ class _UniverseScreenState extends State<UniverseScreen> {
                 MaterialPageRoute(builder: (context) => const SearchScreen()),
               );
             },
-            isDark: isUniverseMode,
           ),
         ],
       ),
@@ -449,13 +440,12 @@ class _UniverseScreenState extends State<UniverseScreen> {
   Widget _buildCircleActionButton({
     required IconData icon,
     required VoidCallback onTap,
-    bool isDark = false,
   }) {
     return Material(
-      color: isDark ? const Color(0xFF262626) : Colors.white,
+      color: Colors.white,
       shape: const CircleBorder(),
       elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
+      shadowColor: Colors.black.withValues(alpha: 0.08),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
@@ -464,14 +454,12 @@ class _UniverseScreenState extends State<UniverseScreen> {
           height: 40,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(
-              color: isDark ? const Color(0xFF525252) : const Color(0xFFE2E8F0),
-            ),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: Icon(
             icon,
             size: 20,
-            color: isDark ? Colors.white : const Color(0xFF334155),
+            color: const Color(0xFF334155),
           ),
         ),
       ),
@@ -553,764 +541,6 @@ class _UniverseScreenState extends State<UniverseScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildBottomCapsuleToggle() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.6)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Globe Tab
-          GestureDetector(
-            onTap: () => setState(() => _activeTab = 'globe'),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-              decoration: BoxDecoration(
-                color: _activeTab == 'globe' ? Colors.white : Colors.transparent,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.language_rounded,
-                    size: 18,
-                    color: _activeTab == 'globe' ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Globe',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: _activeTab == 'globe' ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Universe Tab
-          GestureDetector(
-            onTap: () => setState(() => _activeTab = 'universe'),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: _activeTab == 'universe' ? Colors.white : Colors.transparent,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.auto_awesome_rounded,
-                    size: 18,
-                    color: _activeTab == 'universe' ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Universe',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: _activeTab == 'universe' ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Constellation View in Grey[800] theme.
-class ConstellationUniverseView extends StatefulWidget {
-  final List<MemoryItem> memories;
-  final String? selectedCategory;
-  final String? selectedNodeId;
-  final ValueChanged<String?> onCategorySelected;
-  final ValueChanged<String?> onNodeSelected;
-
-  const ConstellationUniverseView({
-    super.key,
-    required this.memories,
-    required this.selectedCategory,
-    required this.selectedNodeId,
-    required this.onCategorySelected,
-    required this.onNodeSelected,
-  });
-
-  @override
-  State<ConstellationUniverseView> createState() => _ConstellationUniverseViewState();
-}
-
-class _ConstellationUniverseViewState extends State<ConstellationUniverseView>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  List<String> _extractCategories() {
-    final categories = {'All'};
-    for (final m in widget.memories) {
-      if (m.category.isNotEmpty) {
-        categories.add(m.category);
-      }
-    }
-    return categories.toList();
-  }
-
-  /// Calculates pseudo-random 2D positions for memory nodes across the sky canvas.
-  List<ConstellationNode> _buildNodes(Size size) {
-    final nodes = <ConstellationNode>[];
-    if (widget.memories.isEmpty) return nodes;
-
-    final count = widget.memories.length;
-    for (int i = 0; i < count; i++) {
-      final memory = widget.memories[i];
-      final hash = (memory.id.hashCode ^ (memory.category.hashCode * 17)) & 0x7fffffff;
-      final hashY = ((memory.title.hashCode * 31) ^ (i * 101)) & 0x7fffffff;
-
-      // Spread evenly in normalized space (0.12..0.88, 0.14..0.76)
-      final normX = 0.12 + 0.76 * ((hash % 1000) / 1000.0);
-      final normY = 0.14 + 0.62 * ((hashY % 1000) / 1000.0);
-
-      nodes.add(
-        ConstellationNode(
-          index: i,
-          memory: memory,
-          position: Offset(normX * size.width, normY * size.height),
-          color: AtlasCategory.color(memory.category),
-        ),
-      );
-    }
-    return nodes;
-  }
-
-  /// Builds constellation links (edges) between nodes.
-  List<ConstellationEdge> _buildEdges(List<ConstellationNode> nodes) {
-    final edges = <ConstellationEdge>[];
-    for (int i = 0; i < nodes.length; i++) {
-      for (int j = i + 1; j < nodes.length; j++) {
-        // Connect nodes in the same category
-        if (nodes[i].memory.category == nodes[j].memory.category) {
-          edges.add(ConstellationEdge(i, j));
-        } else {
-          // Connect nearby nodes in distance to form constellation chains
-          final dist = (nodes[i].position - nodes[j].position).distance;
-          if (dist < 140) {
-            edges.add(ConstellationEdge(i, j));
-          }
-        }
-      }
-    }
-    return edges;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final categories = _extractCategories();
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final size = constraints.biggest;
-        final nodes = _buildNodes(size);
-        final edges = _buildEdges(nodes);
-
-        // Filter visible nodes if category is selected
-        final filteredNodes = widget.selectedCategory == null || widget.selectedCategory == 'All'
-            ? nodes
-            : nodes.where((n) => n.memory.category == widget.selectedCategory).toList();
-
-        // Selected Node & Connected Siblings
-        ConstellationNode? selectedNode;
-        final connectedNodeIds = <String>{};
-
-        if (widget.selectedNodeId != null) {
-          final selectedIdx = nodes.indexWhere((n) => n.memory.id == widget.selectedNodeId);
-          if (selectedIdx != -1) {
-            selectedNode = nodes[selectedIdx];
-            connectedNodeIds.add(selectedNode.memory.id);
-
-            for (final edge in edges) {
-              if (edge.sourceIndex == selectedIdx) {
-                connectedNodeIds.add(nodes[edge.targetIndex].memory.id);
-              } else if (edge.targetIndex == selectedIdx) {
-                connectedNodeIds.add(nodes[edge.sourceIndex].memory.id);
-              }
-            }
-          }
-        }
-
-        return Stack(
-          children: [
-            // 1. Constellation Canvas in Grey[800]
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapUp: (details) {
-                final tapPos = details.localPosition;
-                ConstellationNode? closest;
-                double minDist = 40.0; // Touch radius threshold
-
-                for (final node in filteredNodes) {
-                  final dist = (node.position - tapPos).distance;
-                  if (dist < minDist) {
-                    minDist = dist;
-                    closest = node;
-                  }
-                }
-
-                if (closest != null) {
-                  widget.onNodeSelected(closest.memory.id);
-                } else {
-                  widget.onNodeSelected(null);
-                }
-              },
-              child: AnimatedBuilder(
-                animation: _pulseController,
-                builder: (context, _) {
-                  return CustomPaint(
-                    size: size,
-                    painter: ConstellationCanvasPainter(
-                      nodes: filteredNodes,
-                      edges: edges,
-                      selectedNodeId: widget.selectedNodeId,
-                      connectedNodeIds: connectedNodeIds,
-                      pulseValue: _pulseController.value,
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            // 2. Category Filter Chips Bar (before the canvas)
-            Positioned(
-              top: 12,
-              left: 0,
-              right: 0,
-              child: SizedBox(
-                height: 38,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: categories.length,
-                  itemBuilder: (context, idx) {
-                    final cat = categories[idx];
-                    final isSelected = (cat == 'All' && (widget.selectedCategory == null || widget.selectedCategory == 'All')) ||
-                        widget.selectedCategory == cat;
-
-                    final chipBg = isSelected ? Colors.white : const Color(0xFF262626);
-                    final chipBorder = isSelected ? Colors.white : const Color(0xFF525252);
-                    final chipText = isSelected ? const Color(0xFF111827) : Colors.white;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () => widget.onCategorySelected(cat == 'All' ? null : cat),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: chipBg,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: chipBorder, width: 1),
-                          ),
-                          child: Center(
-                            child: Text(
-                              cat,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: chipText,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-
-            // 3. Floating Selected Memory Card Overlay
-            if (selectedNode != null)
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: 120,
-                child: ConstellationMemoryCard(
-                  memory: selectedNode.memory,
-                  onClose: () => widget.onNodeSelected(null),
-                  onNext: () {
-                    final index = filteredNodes.indexWhere((n) => n.memory.id == selectedNode!.memory.id);
-                    if (index != -1 && filteredNodes.isNotEmpty) {
-                      final nextIndex = (index + 1) % filteredNodes.length;
-                      widget.onNodeSelected(filteredNodes[nextIndex].memory.id);
-                    }
-                  },
-                  onPrevious: () {
-                    final index = filteredNodes.indexWhere((n) => n.memory.id == selectedNode!.memory.id);
-                    if (index != -1 && filteredNodes.isNotEmpty) {
-                      final prevIndex = (index - 1 + filteredNodes.length) % filteredNodes.length;
-                      widget.onNodeSelected(filteredNodes[prevIndex].memory.id);
-                    }
-                  },
-                ),
-              ),
-
-            // 4. Bottom Instruction Pill
-            if (selectedNode == null)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 72,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF262626),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF525252)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 12,
-                        ),
-                      ],
-                    ),
-                    child: const Text(
-                      'Select a star node to open card',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFFE5E7EB),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class ConstellationNode {
-  final int index;
-  final MemoryItem memory;
-  final Offset position;
-  final Color color;
-
-  ConstellationNode({
-    required this.index,
-    required this.memory,
-    required this.position,
-    required this.color,
-  });
-}
-
-class ConstellationEdge {
-  final int sourceIndex;
-  final int targetIndex;
-
-  ConstellationEdge(this.sourceIndex, this.targetIndex);
-}
-
-/// CustomPainter for rendering constellation canvas in Grey[800] theme.
-class ConstellationCanvasPainter extends CustomPainter {
-  final List<ConstellationNode> nodes;
-  final List<ConstellationEdge> edges;
-  final String? selectedNodeId;
-  final Set<String> connectedNodeIds;
-  final double pulseValue;
-
-  ConstellationCanvasPainter({
-    required this.nodes,
-    required this.edges,
-    required this.selectedNodeId,
-    required this.connectedNodeIds,
-    required this.pulseValue,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // 1. Grey[800] Background Painting
-    final bgRect = Offset.zero & size;
-    final bgPaint = Paint();
-
-    final bgGradient = RadialGradient(
-      center: const Alignment(0, -0.2),
-      radius: 1.3,
-      colors: const [
-        Color(0xFF525252),
-        Color(0xFF424242), // Colors.grey[800]
-        Color(0xFF262626),
-      ],
-    );
-    bgPaint.shader = bgGradient.createShader(bgRect);
-    canvas.drawRect(bgRect, bgPaint);
-
-    // 2. Background Stardust Field
-    final starPaint = Paint();
-    final random = math.Random(42);
-    for (int i = 0; i < 70; i++) {
-      final sx = random.nextDouble() * size.width;
-      final sy = random.nextDouble() * size.height;
-      final opacity = (0.2 + 0.6 * random.nextDouble()) * (0.8 + 0.2 * math.sin(pulseValue * math.pi * 2 + i));
-
-      starPaint.color = Colors.white.withValues(alpha: (opacity * 0.55).clamp(0.1, 0.7));
-      canvas.drawCircle(Offset(sx, sy), random.nextDouble() * 1.5 + 0.5, starPaint);
-    }
-
-    final hasSelection = selectedNodeId != null;
-
-    // 3. Constellation Connection Lines (Edges)
-    for (final edge in edges) {
-      if (edge.sourceIndex >= nodes.length || edge.targetIndex >= nodes.length) continue;
-      final p1 = nodes[edge.sourceIndex].position;
-      final p2 = nodes[edge.targetIndex].position;
-
-      final isSourceSelected = nodes[edge.sourceIndex].memory.id == selectedNodeId;
-      final isTargetSelected = nodes[edge.targetIndex].memory.id == selectedNodeId;
-      final isConnectedEdge = isSourceSelected || isTargetSelected;
-
-      Paint linePaint;
-      if (isConnectedEdge) {
-        linePaint = Paint()
-          ..color = Colors.white
-          ..strokeWidth = 2.2
-          ..style = PaintingStyle.stroke;
-        canvas.drawLine(p1, p2, linePaint);
-      } else if (hasSelection) {
-        linePaint = Paint()
-          ..color = const Color(0xFF9CA3AF).withValues(alpha: 0.15)
-          ..strokeWidth = 0.8
-          ..style = PaintingStyle.stroke;
-        _drawDashedLine(canvas, p1, p2, linePaint);
-      } else {
-        linePaint = Paint()
-          ..color = const Color(0xFF9CA3AF).withValues(alpha: 0.40)
-          ..strokeWidth = 1.0
-          ..style = PaintingStyle.stroke;
-        _drawDashedLine(canvas, p1, p2, linePaint);
-      }
-    }
-
-    // 4. Star Nodes & Title Labels
-    for (final node in nodes) {
-      final isSelected = node.memory.id == selectedNodeId;
-      final isConnected = connectedNodeIds.contains(node.memory.id);
-
-      final pos = node.position;
-
-      if (isSelected) {
-        // Glowing Aura Ring
-        final auraRadius = 14.0 + 4.0 * pulseValue;
-        final auraPaint = Paint()
-          ..color = node.color.withValues(alpha: 0.50)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-        canvas.drawCircle(pos, auraRadius, auraPaint);
-
-        // Core Glowing Star
-        final corePaint = Paint()..color = Colors.white;
-        canvas.drawCircle(pos, 6.5, corePaint);
-
-        final ringBorder = Paint()
-          ..color = node.color
-          ..strokeWidth = 2.2
-          ..style = PaintingStyle.stroke;
-        canvas.drawCircle(pos, 6.5, ringBorder);
-      } else if (isConnected) {
-        final dotPaint = Paint()..color = node.color;
-        canvas.drawCircle(pos, 5.5, dotPaint);
-
-        final centerDot = Paint()..color = Colors.white;
-        canvas.drawCircle(pos, 2.5, centerDot);
-      } else {
-        final dimAlpha = hasSelection ? 0.35 : 0.85;
-        final dotPaint = Paint()..color = node.color.withValues(alpha: dimAlpha);
-        canvas.drawCircle(pos, 4.0, dotPaint);
-      }
-
-      // Render Title Label next to node
-      final textColor = isSelected
-          ? Colors.white
-          : isConnected
-              ? Colors.white
-              : Colors.white.withValues(alpha: hasSelection ? 0.40 : 0.80);
-
-      final textStyle = TextStyle(
-        color: textColor,
-        fontSize: isSelected ? 12 : 10.5,
-        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-        shadows: [
-          BoxShadow(
-            color: node.color.withValues(alpha: 0.7),
-            blurRadius: 8,
-          ),
-        ],
-      );
-
-      final textSpan = TextSpan(text: node.memory.title, style: textStyle);
-      final textPainter = TextPainter(
-        text: textSpan,
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-      );
-      textPainter.layout();
-
-      // Position label neatly near the node dot
-      final labelOffset = Offset(pos.dx - textPainter.width / 2, pos.dy + 10);
-      textPainter.paint(canvas, labelOffset);
-    }
-  }
-
-  void _drawDashedLine(Canvas canvas, Offset p1, Offset p2, Paint paint) {
-    const dashWidth = 4.0;
-    const dashSpace = 4.0;
-    final dx = p2.dx - p1.dx;
-    final dy = p2.dy - p1.dy;
-    final distance = math.sqrt(dx * dx + dy * dy);
-    final count = (distance / (dashWidth + dashSpace)).floor();
-
-    for (int i = 0; i < count; i++) {
-      final startFrac = (i * (dashWidth + dashSpace)) / distance;
-      final endFrac = (i * (dashWidth + dashSpace) + dashWidth) / distance;
-      final start = Offset(p1.dx + dx * startFrac, p1.dy + dy * startFrac);
-      final end = Offset(p1.dx + dx * endFrac, p1.dy + dy * endFrac);
-      canvas.drawLine(start, end, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant ConstellationCanvasPainter oldDelegate) => true;
-}
-
-/// Floating memory card pop-up overlay for the selected star node.
-class ConstellationMemoryCard extends StatelessWidget {
-  final MemoryItem memory;
-  final VoidCallback onClose;
-  final VoidCallback onNext;
-  final VoidCallback onPrevious;
-
-  const ConstellationMemoryCard({
-    super.key,
-    required this.memory,
-    required this.onClose,
-    required this.onNext,
-    required this.onPrevious,
-  });
-
-  int _calculateReadTime(String text) {
-    if (text.isEmpty) return 2;
-    final words = text.trim().split(RegExp(r'\s+')).length;
-    return math.max(1, (words / 25).ceil());
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = AtlasCategory.color(memory.category);
-
-    return Material(
-      elevation: 12,
-      shadowColor: Colors.black.withValues(alpha: 0.5),
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: accent.withValues(alpha: 0.4), width: 1.5),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Category Chip, Read Time, and Close Button
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    memory.category.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: accent,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.access_time_rounded,
-                      size: 13,
-                      color: Color(0xFF94A3B8),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${_calculateReadTime(memory.aiSummary)} min read',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: onClose,
-                      child: const Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Title
-            Text(
-              memory.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 17.5,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 6),
-
-            // Description / AI Summary
-            Text(
-              memory.aiSummary.isNotEmpty ? memory.aiSummary : memory.subtitle,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF475569),
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Divider
-            Container(
-              height: 1,
-              color: const Color(0xFFF1F5F9),
-            ),
-            const SizedBox(height: 8),
-
-            // Footer Row: Cycle Controls & ...more >
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: onPrevious,
-                      child: const Icon(
-                        Icons.arrow_back_ios_rounded,
-                        size: 14,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Star Node Card',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF94A3B8),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: onNext,
-                      child: const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 14,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => DetailScreen(memory: memory),
-                      ),
-                    );
-                  },
-                  child: const Row(
-                    children: [
-                      Text(
-                        '...more',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      SizedBox(width: 2),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: 16,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1558,7 +788,7 @@ class UniverseGlobePainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
     _drawPath(canvas, size, 0.0, null, equator);
 
-    // 6. Glowing Orbital Rings / Nodes
+    // 6. Glowing Orbital Nodes
     final nodePaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.6)
       ..style = PaintingStyle.fill;

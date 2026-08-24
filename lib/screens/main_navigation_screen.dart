@@ -75,17 +75,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     ),
                     IconButton(
                       icon: Icon(
-                        Icons.hub_rounded,
+                        Icons.language_rounded,
                         color: _currentIndex == 1 ? AtlasColors.blue : Colors.grey.shade400,
                         size: 24,
                       ),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const UniverseScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: () => setState(() => _currentIndex = 1),
                     ),
 
                     const SizedBox(width: 52), // Space for center (+) button

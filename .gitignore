@@ -27,11 +27,24 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
 /build/
 /coverage/
+
+# Environment / secrets / keys
+*.env
+*.env.*
+!.env.example
+*.jks
+*.keystore
+*.key
+*.p8
+*.p12
+*.mobileprovision
 
 # Symbolication related
 app.*.symbols
@@ -43,3 +56,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# System and temporary files
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*~
+.gemini/
+

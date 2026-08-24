@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -6,6 +6,8 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/memory_item.dart';
+import '../services/firebase_sync_service.dart';
+import '../services/local_database_service.dart';
 
 class MemoryProvider extends ChangeNotifier {
   bool _hasPhotoPermission = true;
@@ -22,9 +24,18 @@ class MemoryProvider extends ChangeNotifier {
   List<AssetEntity> _deviceScreenshots = [];
   bool _isLoadingScreenshots = false;
 
-  final List<MemoryItem> _memories = [
+  List<MemoryItem> _memories = [];
+  List<MemoryItem> _favoriteMemories = [];
+  List<MemoryItem> _archivedMemories = [];
+  List<MemoryItem> _trashMemories = [];
+  List<MemoryItem> _triageItems = [];
+
+  CloudSyncState _syncState = CloudSyncState.offline;
+  StreamSubscription? _syncStateSub;
+
+  final List<MemoryItem> _defaultSeedMemories = [
     MemoryItem(
-      id: '1',
+      id: 'seed_1',
       title: 'Linear Design System',
       subtitle: 'linear.app/docs',
       sourceApp: 'Arc Browser',
@@ -37,7 +48,7 @@ class MemoryProvider extends ChangeNotifier {
       iconData: Icons.link_rounded,
     ),
     MemoryItem(
-      id: '2',
+      id: 'seed_2',
       title: 'Recipe: Paneer Tikka',
       subtitle: 'Screenshot • Instagram',
       sourceApp: 'Instagram',
@@ -50,7 +61,7 @@ class MemoryProvider extends ChangeNotifier {
       iconData: Icons.restaurant_rounded,
     ),
     MemoryItem(
-      id: '3',
+      id: 'seed_3',
       title: 'Tokyo Travel Flight Ideas',
       subtitle: 'Notes • Safari',
       sourceApp: 'Safari Browser',
@@ -62,7 +73,7 @@ class MemoryProvider extends ChangeNotifier {
       iconData: Icons.flight_takeoff_rounded,
     ),
     MemoryItem(
-      id: '4',
+      id: 'seed_4',
       title: 'Nike Air Max Wishlist',
       subtitle: 'Shoes under ₹3000 • Chrome',
       sourceApp: 'Chrome Browser',
@@ -72,33 +83,6 @@ class MemoryProvider extends ChangeNotifier {
       category: 'Shopping',
       iconBgColor: const Color(0xFFFFF1F2),
       iconData: Icons.shopping_bag_rounded,
-    ),
-  ];
-
-  final List<MemoryItem> _triageItems = [
-    MemoryItem(
-      id: 't1',
-      title: 'Airbnb Booking Receipt.pdf',
-      subtitle: 'Added from Downloads',
-      sourceApp: 'Files',
-      type: MemoryType.pdf,
-      savedAt: DateTime.now().subtract(const Duration(hours: 5)),
-      aiSummary: 'Booking confirmation document for stay in Goa.',
-      category: 'Uncategorized',
-      iconBgColor: const Color(0xFFF3F4F6),
-      iconData: Icons.picture_as_pdf_rounded,
-    ),
-    MemoryItem(
-      id: 't2',
-      title: 'React Native vs Flutter Comparison',
-      subtitle: 'Copied Text • Medium',
-      sourceApp: 'Medium',
-      type: MemoryType.note,
-      savedAt: DateTime.now().subtract(const Duration(hours: 12)),
-      aiSummary: 'Comparison breakdown highlighting performance and UI fidelity differences.',
-      category: 'Uncategorized',
-      iconBgColor: const Color(0xFFF5F3FF),
-      iconData: Icons.description_rounded,
     ),
   ];
 
@@ -134,12 +118,16 @@ class MemoryProvider extends ChangeNotifier {
   ];
 
   MemoryProvider() {
+    _initDatabaseAndServices();
     _loadPreferences();
     loadDeviceScreenshots();
   }
 
   bool get hasPhotoPermission => _hasPhotoPermission;
   List<MemoryItem> get memories => _memories;
+  List<MemoryItem> get favoriteMemories => _favoriteMemories;
+  List<MemoryItem> get archivedMemories => _archivedMemories;
+  List<MemoryItem> get trashMemories => _trashMemories;
   List<MemoryItem> get triageItems => _triageItems;
   List<Map<String, dynamic>> get availableScreenshots => _availableScreenshots;
   List<AssetEntity> get deviceScreenshots => _deviceScreenshots;
@@ -149,6 +137,86 @@ class MemoryProvider extends ChangeNotifier {
   String get processingTitle => _processingTitle;
   String get processingSubtitle => _processingSubtitle;
   bool get processingCompleted => _processingCompleted;
+  CloudSyncState get syncState => _syncState;
+  DateTime? get lastSyncedAt => FirebaseSyncService.instance.lastSyncedAt;
+
+  Future<void> _initDatabaseAndServices() async {
+    final db = LocalDatabaseService.instance;
+    await db.seedInitialDataIfEmpty(_defaultSeedMemories);
+    await reloadMemoriesFromDb();
+
+    // Init triage items
+    _triageItems = [
+      MemoryItem(
+        id: 't1',
+        title: 'Airbnb Booking Receipt.pdf',
+        subtitle: 'Added from Downloads',
+        sourceApp: 'Files',
+        type: MemoryType.pdf,
+        savedAt: DateTime.now().subtract(const Duration(hours: 5)),
+        aiSummary: 'Booking confirmation document for stay in Goa.',
+        category: 'Uncategorized',
+        iconBgColor: const Color(0xFFF3F4F6),
+        iconData: Icons.picture_as_pdf_rounded,
+      ),
+      MemoryItem(
+        id: 't2',
+        title: 'React Native vs Flutter Comparison',
+        subtitle: 'Copied Text • Medium',
+        sourceApp: 'Medium',
+        type: MemoryType.note,
+        savedAt: DateTime.now().subtract(const Duration(hours: 12)),
+        aiSummary: 'Comparison breakdown highlighting performance and UI fidelity differences.',
+        category: 'Uncategorized',
+        iconBgColor: const Color(0xFFF5F3FF),
+        iconData: Icons.description_rounded,
+      ),
+    ];
+
+    // Initialize Firebase
+    final fb = FirebaseSyncService.instance;
+    _syncState = fb.syncState;
+    _syncStateSub = fb.syncStateStream.listen((state) {
+      _syncState = state;
+      notifyListeners();
+    });
+
+    await fb.initialize();
+    fb.startRealtimeSync(onLocalDataChanged: (updated) {
+      _memories = updated;
+      _reloadAuxiliaryLists();
+      notifyListeners();
+    });
+
+    // Initial background sync
+    syncNow();
+  }
+
+  Future<void> reloadMemoriesFromDb() async {
+    final db = LocalDatabaseService.instance;
+    _memories = await db.getActiveMemories();
+    _favoriteMemories = await db.getFavoriteMemories();
+    _archivedMemories = await db.getArchivedMemories();
+    _trashMemories = await db.getTrashMemories();
+    notifyListeners();
+  }
+
+  Future<void> _reloadAuxiliaryLists() async {
+    final db = LocalDatabaseService.instance;
+    _favoriteMemories = await db.getFavoriteMemories();
+    _archivedMemories = await db.getArchivedMemories();
+    _trashMemories = await db.getTrashMemories();
+  }
+
+  Future<void> syncNow() async {
+    await FirebaseSyncService.instance.syncWithCloud(
+      onLocalDataChanged: (updated) {
+        _memories = updated;
+        _reloadAuxiliaryLists();
+        notifyListeners();
+      },
+    );
+  }
 
   void togglePhotoPermission(bool value) {
     _hasPhotoPermission = value;
@@ -164,40 +232,8 @@ class MemoryProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _hasPhotoPermission = prefs.getBool('hasPhotoPermission') ?? true;
       _permittedScreenshotIds = prefs.getStringList('permittedScreenshotIds') ?? [];
-      
-      final savedMemoriesJson = prefs.getString('saved_custom_memories');
-      if (savedMemoriesJson != null) {
-        final List list = jsonDecode(savedMemoriesJson);
-        for (var itemMap in list) {
-          final String id = itemMap['id'] ?? '';
-          if (!_memories.any((m) => m.id == id)) {
-            final type = MemoryType.values.firstWhere(
-              (t) => t.name == (itemMap['type'] ?? ''),
-              orElse: () => MemoryType.screenshot,
-            );
-            _memories.insert(
-              0,
-              MemoryItem(
-                id: id,
-                title: itemMap['title'] ?? 'Saved Screenshot',
-                subtitle: itemMap['subtitle'] ?? 'Screenshot • Gallery',
-                sourceApp: itemMap['sourceApp'] ?? 'Photos',
-                type: type,
-                savedAt: DateTime.tryParse(itemMap['savedAt'] ?? '') ?? DateTime.now(),
-                aiSummary: itemMap['aiSummary'] ?? 'Saved screenshot in ATLAS Memory Space.',
-                category: itemMap['category'] ?? 'Screenshots',
-                url: itemMap['url'],
-                snippet: itemMap['snippet'],
-                imagePath: itemMap['imagePath'],
-                iconBgColor: Color(itemMap['iconBgColor'] ?? 0xFFECFDF5),
-                iconData: _getIconData(itemMap['iconDataCode']),
-              ),
-            );
-          }
-        }
-      }
     } catch (e) {
-      debugPrint("Error restoring saved memories: $e");
+      debugPrint("Error restoring preferences: $e");
     }
     notifyListeners();
   }
@@ -207,50 +243,134 @@ class MemoryProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('hasPhotoPermission', _hasPhotoPermission);
       await prefs.setStringList('permittedScreenshotIds', _permittedScreenshotIds);
-
-      final customList = _memories
-          .where((m) =>
-              m.id.startsWith('real_shot_') ||
-              m.id.startsWith('shot_mem_') ||
-              m.id.startsWith('shared_') ||
-              m.id.startsWith('manual_'))
-          .map((m) => {
-                'id': m.id,
-                'title': m.title,
-                'subtitle': m.subtitle,
-                'sourceApp': m.sourceApp,
-                'type': m.type.name,
-                'savedAt': m.savedAt.toIso8601String(),
-                'aiSummary': m.aiSummary,
-                'category': m.category,
-                'url': m.url,
-                'snippet': m.snippet,
-                'imagePath': m.imagePath,
-                'iconBgColor': m.iconBgColor.value,
-                'iconDataCode': m.iconData.codePoint,
-              })
-          .toList();
-
-      await prefs.setString('saved_custom_memories', jsonEncode(customList));
     } catch (e) {
       debugPrint("Error saving preferences: $e");
     }
   }
 
-  IconData _getIconData(int? codePoint) {
-    if (codePoint == Icons.receipt_long_rounded.codePoint) return Icons.receipt_long_rounded;
-    if (codePoint == Icons.restaurant_rounded.codePoint) return Icons.restaurant_rounded;
-    if (codePoint == Icons.flight_takeoff_rounded.codePoint) return Icons.flight_takeoff_rounded;
-    if (codePoint == Icons.palette_rounded.codePoint) return Icons.palette_rounded;
-    if (codePoint == Icons.code_rounded.codePoint) return Icons.code_rounded;
-    if (codePoint == Icons.link_rounded.codePoint) return Icons.link_rounded;
-    if (codePoint == Icons.notes_rounded.codePoint) return Icons.notes_rounded;
-    if (codePoint == Icons.share_rounded.codePoint) return Icons.share_rounded;
-    if (codePoint == Icons.image_rounded.codePoint) return Icons.image_rounded;
-    if (codePoint == Icons.picture_as_pdf_rounded.codePoint) return Icons.picture_as_pdf_rounded;
-    if (codePoint == Icons.insert_drive_file_rounded.codePoint) return Icons.insert_drive_file_rounded;
-    return Icons.image_rounded;
+  // --- CRUD Engine Operations ---
+
+  Future<void> addMemoryManually({
+    required String content,
+    String? url,
+    String category = 'Uncategorized',
+    List<String> tags = const [],
+  }) async {
+    final trimmed = content.trim();
+    final trimmedUrl = url?.trim() ?? '';
+    final isLink = trimmedUrl.isNotEmpty;
+
+    final item = MemoryItem(
+      id: 'manual_${DateTime.now().microsecondsSinceEpoch}',
+      title: isLink ? _linkTitle(trimmedUrl) : _textTitle(trimmed),
+      subtitle: isLink ? trimmedUrl : 'Note • Just Now',
+      sourceApp: 'Atlas',
+      type: isLink ? MemoryType.link : MemoryType.note,
+      savedAt: DateTime.now(),
+      aiSummary: trimmed.isEmpty ? trimmedUrl : trimmed,
+      category: category,
+      url: isLink ? trimmedUrl : null,
+      snippet: isLink ? trimmed : null,
+      content: trimmed,
+      tags: tags,
+      syncStatus: SyncStatus.pendingUpload,
+      iconBgColor: isLink ? const Color(0xFFEFF6FF) : const Color(0xFFF5F3FF),
+      iconData: isLink ? Icons.link_rounded : Icons.notes_rounded,
+    );
+
+    await LocalDatabaseService.instance.insertMemory(item);
+    await reloadMemoriesFromDb();
+    syncNow();
   }
+
+  Future<void> updateMemory(MemoryItem updatedItem) async {
+    await LocalDatabaseService.instance.updateMemory(updatedItem);
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> softDeleteMemory(String id) async {
+    await LocalDatabaseService.instance.softDeleteMemory(id);
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> restoreMemory(String id) async {
+    await LocalDatabaseService.instance.restoreMemory(id);
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> permanentDeleteMemory(String id) async {
+    await LocalDatabaseService.instance.permanentDeleteMemory(id);
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> toggleFavorite(String id) async {
+    final itemIndex = _memories.indexWhere((m) => m.id == id);
+    bool currentFav = false;
+    if (itemIndex != -1) {
+      currentFav = _memories[itemIndex].isFavorite;
+    } else {
+      final favIndex = _favoriteMemories.indexWhere((m) => m.id == id);
+      if (favIndex != -1) currentFav = true;
+    }
+
+    await LocalDatabaseService.instance.toggleFavorite(id, !currentFav);
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> toggleArchive(String id) async {
+    final itemIndex = _memories.indexWhere((m) => m.id == id);
+    bool currentArch = false;
+    if (itemIndex != -1) {
+      currentArch = _memories[itemIndex].isArchived;
+    } else {
+      final archIndex = _archivedMemories.indexWhere((m) => m.id == id);
+      if (archIndex != -1) currentArch = true;
+    }
+
+    await LocalDatabaseService.instance.toggleArchive(id, !currentArch);
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> emptyTrash() async {
+    await LocalDatabaseService.instance.emptyTrash();
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  // --- Triage Management ---
+
+  void resolveTriageItem(String id, String category) async {
+    final index = _triageItems.indexWhere((item) => item.id == id);
+    if (index != -1) {
+      final item = _triageItems.removeAt(index);
+      final resolved = MemoryItem(
+        id: item.id,
+        title: item.title,
+        subtitle: item.subtitle,
+        sourceApp: item.sourceApp,
+        type: item.type,
+        savedAt: item.savedAt,
+        aiSummary: item.aiSummary,
+        category: category,
+        url: item.url,
+        syncStatus: SyncStatus.pendingUpload,
+        iconBgColor: item.iconBgColor,
+        iconData: item.iconData,
+      );
+
+      await LocalDatabaseService.instance.insertMemory(resolved);
+      await reloadMemoriesFromDb();
+      syncNow();
+    }
+  }
+
+  // --- Screenshot Scanner & Importer ---
 
   Map<String, dynamic> _analyzeScreenshotContent(String rawTitle, String? filePath) {
     final text = (rawTitle + ' ' + (filePath ?? '')).toLowerCase();
@@ -356,32 +476,33 @@ class MemoryProvider extends ChangeNotifier {
           final rawTitle = 'Screenshot (${entity.createDateTime.day}/${entity.createDateTime.month})';
           final analysis = _analyzeScreenshotContent(rawTitle, filePath);
 
-          _memories.insert(
-            0,
-            MemoryItem(
-              id: 'real_shot_${entity.id}',
-              title: analysis['title'],
-              subtitle: 'Device Gallery • ${analysis['category']}',
-              sourceApp: 'Photos',
-              type: MemoryType.screenshot,
-              savedAt: entity.createDateTime,
-              aiSummary: analysis['aiSummary'],
-              category: analysis['category'],
-              imagePath: filePath,
-              iconBgColor: analysis['iconBgColor'],
-              iconData: analysis['iconData'],
-            ),
+          final item = MemoryItem(
+            id: 'real_shot_${entity.id}',
+            title: analysis['title'],
+            subtitle: 'Device Gallery • ${analysis['category']}',
+            sourceApp: 'Photos',
+            type: MemoryType.screenshot,
+            savedAt: entity.createDateTime,
+            aiSummary: analysis['aiSummary'],
+            category: analysis['category'],
+            imagePath: filePath,
+            syncStatus: SyncStatus.pendingUpload,
+            iconBgColor: analysis['iconBgColor'],
+            iconData: analysis['iconData'],
           );
+
+          await LocalDatabaseService.instance.insertMemory(item);
         }
       } catch (e) {
         debugPrint("Error processing entity ${entity.id}: $e");
       }
     }
     _savePreferences();
-    notifyListeners();
+    await reloadMemoriesFromDb();
+    syncNow();
   }
 
-  void grantScreenshotAccess(List<String> selectedIds) {
+  void grantScreenshotAccess(List<String> selectedIds) async {
     for (String id in selectedIds) {
       try {
         if (!_permittedScreenshotIds.contains(id)) {
@@ -395,53 +516,32 @@ class MemoryProvider extends ChangeNotifier {
           final String rawTitle = shot['title'];
           final analysis = _analyzeScreenshotContent(rawTitle, null);
 
-          _memories.insert(
-            0,
-            MemoryItem(
-              id: 'shot_mem_${DateTime.now().millisecondsSinceEpoch}',
-              title: analysis['title'],
-              subtitle: 'Screenshot • ${analysis['category']}',
-              sourceApp: 'Photos',
-              type: MemoryType.screenshot,
-              savedAt: DateTime.now(),
-              aiSummary: analysis['aiSummary'],
-              category: analysis['category'],
-              iconBgColor: analysis['iconBgColor'],
-              iconData: analysis['iconData'],
-            ),
+          final item = MemoryItem(
+            id: 'shot_mem_${DateTime.now().millisecondsSinceEpoch}',
+            title: analysis['title'],
+            subtitle: 'Screenshot • ${analysis['category']}',
+            sourceApp: 'Photos',
+            type: MemoryType.screenshot,
+            savedAt: DateTime.now(),
+            aiSummary: analysis['aiSummary'],
+            category: analysis['category'],
+            syncStatus: SyncStatus.pendingUpload,
+            iconBgColor: analysis['iconBgColor'],
+            iconData: analysis['iconData'],
           );
+
+          await LocalDatabaseService.instance.insertMemory(item);
         }
       } catch (e) {
         debugPrint("Error processing mock screenshot $id: $e");
       }
     }
     _savePreferences();
-    notifyListeners();
+    await reloadMemoriesFromDb();
+    syncNow();
   }
 
-  void resolveTriageItem(String id, String category) {
-    final index = _triageItems.indexWhere((item) => item.id == id);
-    if (index != -1) {
-      final item = _triageItems.removeAt(index);
-      _memories.insert(
-        0,
-        MemoryItem(
-          id: item.id,
-          title: item.title,
-          subtitle: item.subtitle,
-          sourceApp: item.sourceApp,
-          type: item.type,
-          savedAt: item.savedAt,
-          aiSummary: item.aiSummary,
-          category: category,
-          url: item.url,
-          iconBgColor: item.iconBgColor,
-          iconData: item.iconData,
-        ),
-      );
-      notifyListeners();
-    }
-  }
+  // --- External Share Sheet Handler ---
 
   void startSharedContentProcessing(List<SharedMediaFile> files) {
     _pendingFiles = List.of(files);
@@ -453,36 +553,6 @@ class MemoryProvider extends ChangeNotifier {
     _pendingFiles = [];
     _pendingQuickNote = note;
     _runShareProcessing();
-  }
-
-  void addMemoryManually({
-    required String content,
-    String? url,
-    String category = 'Uncategorized',
-  }) {
-    final trimmed = content.trim();
-    final trimmedUrl = url?.trim() ?? '';
-    final isLink = trimmedUrl.isNotEmpty;
-
-    _memories.insert(
-      0,
-      MemoryItem(
-        id: 'manual_${DateTime.now().microsecondsSinceEpoch}',
-        title: isLink ? _linkTitle(trimmedUrl) : _textTitle(trimmed),
-        subtitle: isLink ? trimmedUrl : 'Note • Just Now',
-        sourceApp: 'Atlas',
-        type: isLink ? MemoryType.link : MemoryType.note,
-        savedAt: DateTime.now(),
-        aiSummary: trimmed.isEmpty ? trimmedUrl : trimmed,
-        category: category,
-        url: isLink ? trimmedUrl : null,
-        snippet: isLink ? trimmed : null,
-        iconBgColor: isLink ? const Color(0xFFEFF6FF) : const Color(0xFFF5F3FF),
-        iconData: isLink ? Icons.link_rounded : Icons.notes_rounded,
-      ),
-    );
-    _savePreferences();
-    notifyListeners();
   }
 
   Future<void> _runShareProcessing() async {
@@ -501,7 +571,7 @@ class MemoryProvider extends ChangeNotifier {
     }
 
     await Future.delayed(const Duration(milliseconds: 1500));
-    _saveIncomingContent();
+    await _saveIncomingContent();
 
     _processingTitle = "Saved.";
     _processingSubtitle = "You'll always find it later in ATLAS.";
@@ -512,30 +582,32 @@ class MemoryProvider extends ChangeNotifier {
   Future<void> _saveIncomingContent() async {
     if (_pendingFiles.isNotEmpty) {
       for (final file in _pendingFiles) {
-        _memories.insert(0, await _buildSharedMemory(file));
+        final item = await _buildSharedMemory(file);
+        await LocalDatabaseService.instance.insertMemory(item);
       }
     } else if (_pendingQuickNote.isNotEmpty) {
       final note = _pendingQuickNote;
-      _memories.insert(
-        0,
-        MemoryItem(
-          id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
-          title: _textTitle(note),
-          subtitle: 'Quick Note • Just Now',
-          sourceApp: 'Atlas',
-          type: MemoryType.note,
-          savedAt: DateTime.now(),
-          aiSummary: 'Quick note saved into ATLAS Memory Space.',
-          category: 'Shared',
-          snippet: note,
-          iconBgColor: const Color(0xFFF5F3FF),
-          iconData: Icons.notes_rounded,
-        ),
+      final item = MemoryItem(
+        id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
+        title: _textTitle(note),
+        subtitle: 'Quick Note • Just Now',
+        sourceApp: 'Atlas',
+        type: MemoryType.note,
+        savedAt: DateTime.now(),
+        aiSummary: 'Quick note saved into ATLAS Memory Space.',
+        category: 'Shared',
+        snippet: note,
+        content: note,
+        syncStatus: SyncStatus.pendingUpload,
+        iconBgColor: const Color(0xFFF5F3FF),
+        iconData: Icons.notes_rounded,
       );
+      await LocalDatabaseService.instance.insertMemory(item);
     }
     _pendingFiles = [];
     _pendingQuickNote = '';
-    _savePreferences();
+    await reloadMemoriesFromDb();
+    syncNow();
   }
 
   Future<MemoryItem> _buildSharedMemory(SharedMediaFile file) async {
@@ -556,6 +628,8 @@ class MemoryProvider extends ChangeNotifier {
           category: 'Shared',
           url: url,
           snippet: rawPath,
+          content: rawPath,
+          syncStatus: SyncStatus.pendingUpload,
           iconBgColor: const Color(0xFFEFF6FF),
           iconData: Icons.link_rounded,
         );
@@ -570,6 +644,8 @@ class MemoryProvider extends ChangeNotifier {
         aiSummary: 'Text snippet saved from another app.',
         category: 'Shared',
         snippet: rawPath,
+        content: rawPath,
+        syncStatus: SyncStatus.pendingUpload,
         iconBgColor: const Color(0xFFF5F3FF),
         iconData: Icons.notes_rounded,
       );
@@ -589,6 +665,7 @@ class MemoryProvider extends ChangeNotifier {
             : 'Video shared from another app and saved into ATLAS.',
         category: 'Shared',
         imagePath: savedPath,
+        syncStatus: SyncStatus.pendingUpload,
         iconBgColor: const Color(0xFFECFDF5),
         iconData: Icons.image_rounded,
       );
@@ -604,6 +681,7 @@ class MemoryProvider extends ChangeNotifier {
       aiSummary: 'File shared from another app and saved into ATLAS.',
       category: 'Shared',
       snippet: file.path,
+      syncStatus: SyncStatus.pendingUpload,
       iconBgColor: const Color(0xFFF3F4F6),
       iconData: Icons.insert_drive_file_rounded,
     );
@@ -664,5 +742,11 @@ class MemoryProvider extends ChangeNotifier {
     _isProcessingShare = false;
     _processingCompleted = false;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _syncStateSub?.cancel();
+    super.dispose();
   }
 }
