@@ -4,9 +4,8 @@ import '../providers/memory_provider.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'universe_screen.dart';
-import 'needs_review_screen.dart';
 import 'screenshot_review_screen.dart';
-import 'add_memory_sheet.dart';
+import 'profile_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -21,156 +20,100 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> _screens = const [
     HomeScreen(),
     UniverseScreen(),
-    NeedsReviewScreen(),
     ScreenshotReviewScreen(),
+    ProfileScreen(),
   ];
-
-  void _openAddMemory() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const AddMemorySheet(),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
-    final memoryProvider = Provider.of<MemoryProvider>(context);
-
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: SafeArea(
         child: Container(
-          height: 100,
-          color: Colors.transparent,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.bottomCenter,
-            children: [
-              // Bottom Nav background bar
-              Container(
-                height: 72,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: AtlasColors.surface.withOpacity(0.95),
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: [AtlasTheme.floatShadow],
-                  border: Border.all(color: Colors.grey.shade200.withOpacity(0.8)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        Icons.home_rounded,
-                        color: _currentIndex == 0 ? AtlasColors.blue : Colors.grey.shade400,
-                        size: 24,
-                      ),
-                      onPressed: () => setState(() => _currentIndex = 0),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.language_rounded,
-                        color: _currentIndex == 1 ? AtlasColors.blue : Colors.grey.shade400,
-                        size: 24,
-                      ),
-                      onPressed: () => setState(() => _currentIndex = 1),
-                    ),
-
-                    const SizedBox(width: 52), // Space for center (+) button
-
-                    Stack(
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.move_to_inbox_rounded,
-                            color: _currentIndex == 2 ? AtlasColors.blue : Colors.grey.shade400,
-                            size: 24,
-                          ),
-                          onPressed: () => setState(() => _currentIndex = 2),
-                        ),
-                        if (memoryProvider.triageItems.isNotEmpty)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: AtlasColors.amber,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 1.5),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    Stack(
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.image_rounded,
-                            color: _currentIndex == 3 ? AtlasColors.blue : Colors.grey.shade400,
-                            size: 24,
-                          ),
-                          onPressed: () => setState(() => _currentIndex = 3),
-                        ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: AtlasColors.emerald,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 1.5),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+          height: 72,
+          margin: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.96),
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
-
-              // Unclipped Floating Center Hero (+) FAB
-              Positioned(
-                top: 0,
-                child: GestureDetector(
-                  onTap: _openAddMemory,
-                  child: Container(
-                    width: 62,
-                    height: 62,
-                    decoration: BoxDecoration(
-                      color: AtlasColors.blue,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AtlasColors.blue.withOpacity(0.35),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                      border: Border.all(color: Colors.white, width: 3),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.add_rounded,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                    ),
-                  ),
-                ),
+            ],
+            border: Border.all(color: Colors.grey.shade200.withOpacity(0.9)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildNavItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
+              _buildNavItem(
+                index: 1,
+                icon: Icons.language_rounded,
+                label: 'Globe',
+              ),
+              _buildNavItem(
+                index: 2,
+                icon: Icons.image_rounded,
+                label: 'Photos',
+              ),
+              _buildNavItem(
+                index: 3,
+                icon: Icons.settings_rounded,
+                label: 'Settings',
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required String label,
+  }) {
+    final isSelected = _currentIndex == index;
+
+    return InkWell(
+      onTap: () => setState(() => _currentIndex = index),
+      borderRadius: BorderRadius.circular(24),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeInOut,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 16 : 12,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AtlasColors.blue.withOpacity(0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? AtlasColors.blue : Colors.grey.shade400,
+              size: 22,
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AtlasColors.blue,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

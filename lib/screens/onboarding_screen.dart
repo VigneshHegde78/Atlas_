@@ -27,43 +27,75 @@ class OnboardingScreen extends StatelessWidget {
                         gradient: const LinearGradient(
                           begin: Alignment.bottomLeft,
                           end: Alignment.topRight,
-                          colors: [
-                            Color(0x100B192C),
-                            Color(0x2010B981),
-                          ],
+                          colors: [Color(0x100B192C), Color(0x2010B981)],
                         ),
                       ),
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
                           Positioned(
-                            top: 48,
-                            left: 40,
+                            top: 40,
+                            left: 36,
                             child: Transform.rotate(
                               angle: -0.2,
-                              child: const Icon(
-                                Icons.photo_library_rounded,
-                                size: 48,
-                                color: Colors.black26,
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [AtlasTheme.softShadow],
+                                ),
+                                child: const Icon(
+                                  Icons.photo_library_rounded,
+                                  size: 32,
+                                  color: AtlasColors.emerald,
+                                ),
                               ),
                             ),
                           ),
                           Positioned(
-                            bottom: 56,
-                            right: 48,
+                            bottom: 40,
+                            right: 36,
                             child: Transform.rotate(
                               angle: 0.2,
-                              child: const Icon(
-                                Icons.link_rounded,
-                                size: 40,
-                                color: Colors.blueAccent,
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [AtlasTheme.softShadow],
+                                ),
+                                child: const Icon(
+                                  Icons.link_rounded,
+                                  size: 32,
+                                  color: Colors.blueAccent,
+                                ),
                               ),
                             ),
                           ),
-                          const Icon(
-                            Icons.picture_as_pdf_rounded,
-                            size: 64,
-                            color: AtlasColors.rose,
+                          // Center Brand Logo Container
+                          Container(
+                            width: 88,
+                            height: 88,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AtlasColors.blue.withOpacity(0.2),
+                                  blurRadius: 24,
+                                  spreadRadius: 4,
+                                ),
+                              ],
+                              border: Border.all(color: Colors.white, width: 3),
+                            ),
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/icons/app_logo.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -114,10 +146,7 @@ class OnboardingScreen extends StatelessWidget {
                   ),
                   child: const Text(
                     'Continue',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),

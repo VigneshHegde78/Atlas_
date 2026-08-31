@@ -25,17 +25,19 @@ class PermissionsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 64,
-                      height: 64,
+                      width: 68,
+                      height: 68,
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: AtlasColors.emeraldLight,
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [AtlasTheme.softShadow],
+                        border: Border.all(color: Colors.grey.shade100),
                       ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.verified_user_rounded,
-                          color: AtlasColors.emerald,
-                          size: 28,
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/icons/app_logo.png',
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ),
@@ -145,10 +147,7 @@ class PermissionsScreen extends StatelessWidget {
                   ),
                   child: const Text(
                     'Enter ATLAS',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),

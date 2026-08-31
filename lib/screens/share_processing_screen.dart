@@ -10,7 +10,8 @@ class ShareProcessingScreen extends StatefulWidget {
   State<ShareProcessingScreen> createState() => _ShareProcessingScreenState();
 }
 
-class _ShareProcessingScreenState extends State<ShareProcessingScreen> with SingleTickerProviderStateMixin {
+class _ShareProcessingScreenState extends State<ShareProcessingScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _spinController;
 
   @override
@@ -65,15 +66,21 @@ class _ShareProcessingScreenState extends State<ShareProcessingScreen> with Sing
                     Container(
                       width: 80,
                       height: 80,
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white,
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 16,
+                          ),
+                        ],
                       ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.psychology_rounded,
-                          color: AtlasColors.emerald,
-                          size: 36,
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/icons/app_logo.png',
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ),

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/memory_provider.dart';
@@ -7,7 +8,8 @@ import '../services/firebase_sync_service.dart';
 import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  final bool isTab;
+  const ProfileScreen({super.key, this.isTab = false});
 
   void _showTrashSheet(BuildContext context, MemoryProvider provider) {
     showModalBottomSheet(
@@ -65,10 +67,16 @@ class ProfileScreen extends StatelessWidget {
                         provider.emptyTrash();
                         Navigator.of(ctx).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Trash emptied permanently.')),
+                          const SnackBar(
+                            content: Text('Trash emptied permanently.'),
+                          ),
                         );
                       },
-                      icon: const Icon(Icons.delete_forever_rounded, color: AtlasColors.rose, size: 18),
+                      icon: const Icon(
+                        Icons.delete_forever_rounded,
+                        color: AtlasColors.rose,
+                        size: 18,
+                      ),
                       label: const Text(
                         'Empty Trash',
                         style: TextStyle(
@@ -87,7 +95,11 @@ class ProfileScreen extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.delete_outline_rounded, size: 48, color: Colors.black12),
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            size: 48,
+                            color: Colors.black12,
+                          ),
                           SizedBox(height: 12),
                           Text(
                             'Trash is empty',
@@ -103,7 +115,7 @@ class ProfileScreen extends StatelessWidget {
                   : ListView.separated(
                       padding: const EdgeInsets.all(20),
                       itemCount: provider.trashMemories.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final item = provider.trashMemories[index];
                         return Container(
@@ -122,7 +134,11 @@ class ProfileScreen extends StatelessWidget {
                                   color: item.iconBgColor,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Icon(item.iconData, color: AtlasColors.blue, size: 20),
+                                child: Icon(
+                                  item.iconData,
+                                  color: AtlasColors.blue,
+                                  size: 20,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -151,17 +167,25 @@ class ProfileScreen extends StatelessWidget {
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.restore_rounded, color: AtlasColors.emerald),
+                                icon: const Icon(
+                                  Icons.restore_rounded,
+                                  color: AtlasColors.emerald,
+                                ),
                                 tooltip: 'Restore',
                                 onPressed: () {
                                   provider.restoreMemory(item.id);
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Restored "${item.title}"')),
+                                    SnackBar(
+                                      content: Text('Restored "${item.title}"'),
+                                    ),
                                   );
                                 },
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete_forever_rounded, color: Colors.grey),
+                                icon: const Icon(
+                                  Icons.delete_forever_rounded,
+                                  color: Colors.grey,
+                                ),
                                 tooltip: 'Delete forever',
                                 onPressed: () {
                                   provider.permanentDeleteMemory(item.id);
@@ -192,7 +216,10 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Memory Space Export', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'Memory Space Export',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,12 +246,26 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
         actions: [
+          TextButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: jsonString));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Exported JSON copied to clipboard!'),
+                ),
+              );
+            },
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Copy JSON'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(),
             style: ElevatedButton.styleFrom(
               backgroundColor: AtlasColors.blue,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             child: const Text('Close'),
           ),
@@ -236,6 +277,7 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final memoryProvider = Provider.of<MemoryProvider>(context);
+    final canPop = Navigator.of(context).canPop();
 
     String syncStatusText;
     Color syncStatusColor;
@@ -257,77 +299,68 @@ class ProfileScreen extends StatelessWidget {
 
     final lastSyncText = memoryProvider.lastSyncedAt != null
         ? 'Last synced: ${DateFormat('hh:mm a').format(memoryProvider.lastSyncedAt!)}'
-        : 'Changes stored in local SQLite database';
+        : 'Changes stored securely in local SQLite';
 
     return Scaffold(
       backgroundColor: AtlasColors.surface,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: canPop
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
+        title: const Text(
+          'Settings',
+          style: TextStyle(fontWeight: FontWeight.w800),
         ),
-        title: const Text('Account & Privacy'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 100.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  color: AtlasColors.blue,
-                  shape: BoxShape.circle,
-                  boxShadow: [AtlasTheme.floatShadow],
-                ),
-                child: const Center(
-                  child: Text(
-                    'AV',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Alex Vance',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: AtlasColors.blue,
-                ),
-              ),
-              Text(
-                'alex.vance@atlas.memory',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade500,
-                ),
-              ),
-              const SizedBox(height: 28),
+              // 1. User Profile Account Card (Top)
+              _buildUserProfileCard(context),
+              const SizedBox(height: 20),
 
-              // Metrics Row
+              // 2. Metrics Statistics Row
               Row(
                 children: [
                   Expanded(
-                    child: _buildStatCard('Active', '${memoryProvider.memories.length}', Icons.psychology_rounded),
+                    child: _buildStatCard(
+                      'Active',
+                      '${memoryProvider.memories.length}',
+                      Icons.psychology_rounded,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: _buildStatCard('Favorites', '${memoryProvider.favoriteMemories.length}', Icons.favorite_rounded, color: AtlasColors.rose),
+                    child: _buildStatCard(
+                      'Favorites',
+                      '${memoryProvider.favoriteMemories.length}',
+                      Icons.favorite_rounded,
+                      color: AtlasColors.rose,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: _buildStatCard('Trash', '${memoryProvider.trashMemories.length}', Icons.delete_outline_rounded, color: Colors.grey),
+                    child: _buildStatCard(
+                      'In Trash',
+                      '${memoryProvider.trashMemories.length}',
+                      Icons.delete_outline_rounded,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
+
+              // Section Header: SYNC & DATABASE
+              _buildSectionHeader('SYNC & STORAGE'),
+              const SizedBox(height: 10),
 
               // Cloud Sync Card
               Container(
@@ -347,7 +380,11 @@ class ProfileScreen extends StatelessWidget {
                         color: syncStatusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: Icon(Icons.cloud_sync_rounded, color: syncStatusColor, size: 22),
+                      child: Icon(
+                        Icons.cloud_sync_rounded,
+                        color: syncStatusColor,
+                        size: 22,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -379,34 +416,24 @@ class ProfileScreen extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AtlasColors.blue,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         elevation: 0,
                       ),
-                      child: const Text('Sync', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                      child: const Text(
+                        'Sync',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Trash Management Tile
-              _buildSettingTile(
-                icon: Icons.delete_sweep_rounded,
-                title: 'Trash Bin',
-                subtitle: '${memoryProvider.trashMemories.length} items in trash',
-                onTap: () => _showTrashSheet(context, memoryProvider),
-              ),
-              const SizedBox(height: 12),
-
-              _buildSettingTile(
-                icon: Icons.verified_user_rounded,
-                title: 'Photo Library Permission',
-                subtitle: memoryProvider.hasPhotoPermission ? 'Granted' : 'Disabled',
-                trailing: Switch(
-                  value: memoryProvider.hasPhotoPermission,
-                  activeThumbColor: AtlasColors.emerald,
-                  onChanged: (val) => memoryProvider.togglePhotoPermission(val),
                 ),
               ),
               const SizedBox(height: 12),
@@ -417,47 +444,100 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: 'Export SQLite database to JSON archive',
                 onTap: () => _exportDatabase(context, memoryProvider),
               ),
+              const SizedBox(height: 24),
+
+              // Section Header: PRIVACY & SYSTEM
+              _buildSectionHeader('PREFERENCES & DATA'),
+              const SizedBox(height: 10),
+
+              // Trash Management Tile
+              _buildSettingTile(
+                icon: Icons.delete_sweep_rounded,
+                title: 'Trash Bin',
+                subtitle: providerFormatTrash(
+                  memoryProvider.trashMemories.length,
+                ),
+                onTap: () => _showTrashSheet(context, memoryProvider),
+              ),
+              const SizedBox(height: 12),
+
+              _buildSettingTile(
+                icon: Icons.verified_user_rounded,
+                title: 'Photo Library Permission',
+                subtitle: memoryProvider.hasPhotoPermission
+                    ? 'Enabled for Screenshot Scanner'
+                    : 'Disabled',
+                trailing: Switch(
+                  value: memoryProvider.hasPhotoPermission,
+                  activeThumbColor: AtlasColors.emerald,
+                  onChanged: (val) => memoryProvider.togglePhotoPermission(val),
+                ),
+              ),
               const SizedBox(height: 12),
 
               _buildSettingTile(
                 icon: Icons.lock_rounded,
                 title: 'Private Encryption Key',
-                subtitle: 'Local SQLite keychain active',
-                onTap: () {},
+                subtitle: 'Local SQLite keychain active & encrypted',
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'On-device SQLite database encrypted locally.',
+                      ),
+                    ),
+                  );
+                },
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 32),
 
+              // 3. App Branding Center
               Center(
                 child: Column(
                   children: [
-                    Image.asset(
-                      'assets/icons/app_logo.png',
-                      width: 28,
-                      height: 28,
-                      color: AtlasColors.blue,
+                    Container(
+                      width: 48,
+                      height: 48,
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [AtlasTheme.softShadow],
+                        border: Border.all(color: Colors.grey.shade100),
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/icons/app_logo.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'ATLAS v1.0.0',
+                      'ATLAS • Personal Memory OS',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: AtlasColors.blue,
-                        letterSpacing: 1.0,
+                        letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
-                      'Offline-First Memory OS • SQLite & Firebase Powered',
+                      'Version 1.0.0 (Build 1)',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         color: Colors.grey.shade400,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 20),
+
+              // 4. Minimal Developer Info Card (At the end of screen, inspired by Blockit)
+              _buildMinimalDeveloperCard(context),
             ],
           ),
         ),
@@ -465,7 +545,205 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, {Color? color}) {
+  String providerFormatTrash(int count) {
+    if (count == 0) return 'Trash is empty';
+    if (count == 1) return '1 item in trash';
+    return '$count items in trash';
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4.0),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.0,
+          color: Colors.grey.shade500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserProfileCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [AtlasTheme.softShadow],
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AtlasColors.blue, Color(0xFF1E3A8A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AtlasColors.blue.withValues(alpha: 0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Text(
+                'VH',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      'Vignesh Hegde',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AtlasColors.blue,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AtlasColors.emeraldLight,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'LOCAL',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          color: AtlasColors.emerald,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'vignesh.hegde@atlas.memory',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMinimalDeveloperCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [AtlasTheme.softShadow],
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AtlasColors.blue.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.code_rounded,
+                color: AtlasColors.blue,
+                size: 18,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Crafted by Vignesh Hegde',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AtlasColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  'hegdevignesh54@gmail.com • Inspired by Blockit',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.mail_outline_rounded,
+              size: 18,
+              color: AtlasColors.blue,
+            ),
+            tooltip: 'Copy contact email',
+            onPressed: () {
+              Clipboard.setData(
+                const ClipboardData(text: 'hegdevignesh54@gmail.com'),
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Developer email copied: hegdevignesh54@gmail.com',
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon, {
+    Color? color,
+  }) {
     final effectiveColor = color ?? AtlasColors.blue;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),

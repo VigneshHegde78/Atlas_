@@ -9,6 +9,7 @@ import 'detail_screen.dart';
 import 'search_screen.dart';
 import 'needs_review_screen.dart';
 import 'profile_screen.dart';
+import 'add_memory_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +20,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _selectedFilter = 'All'; // 'All', 'Favorites', or category name
+
+  void _openAddMemory() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const AddMemorySheet(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +54,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AtlasColors.surface,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 74.0),
+        child: FloatingActionButton(
+          onPressed: _openAddMemory,
+          backgroundColor: AtlasColors.blue,
+          foregroundColor: Colors.white,
+          elevation: 8,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add_rounded, size: 30),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -51,36 +72,59 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Header with Sync Status Indicator & Profile Avatar
+              // Top Header with App Logo, Greeting, Sync Status Indicator & Profile Avatar
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     children: [
-                      Row(
+                      Container(
+                        width: 44,
+                        height: 44,
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [AtlasTheme.softShadow],
+                          border: Border.all(color: Colors.grey.shade100),
+                        ),
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/icons/app_logo.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Good morning, Alex',
+                          Row(
+                            children: [
+                              Text(
+                                'Good day, Vignesh',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              _buildSyncStatusBadge(memoryProvider),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Your Memory',
                             style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey.shade500,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: AtlasColors.blue,
+                              letterSpacing: -0.4,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          _buildSyncStatusBadge(memoryProvider),
                         ],
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Your Memory',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          color: AtlasColors.blue,
-                        ),
                       ),
                     ],
                   ),
@@ -94,19 +138,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     borderRadius: BorderRadius.circular(24),
                     child: Container(
-                      width: 48,
-                      height: 48,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AtlasColors.blue,
                         shape: BoxShape.circle,
                         boxShadow: [AtlasTheme.softShadow],
-                        border: Border.all(color: Colors.grey.shade100),
+                        border: Border.all(color: Colors.white, width: 2),
                       ),
                       child: const Center(
-                        child: Icon(
-                          Icons.person_outline_rounded,
-                          color: Colors.grey,
-                          size: 20,
+                        child: Text(
+                          'VH',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
@@ -127,7 +174,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(28),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(28),
@@ -178,18 +228,27 @@ class _HomeScreenState extends State<HomeScreen> {
                         onTap: () => setState(() => _selectedFilter = cat),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? (isFavTab ? AtlasColors.rose : AtlasColors.blue)
+                                ? (isFavTab
+                                      ? AtlasColors.rose
+                                      : AtlasColors.blue)
                                 : Colors.white,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: isSelected
-                                  ? (isFavTab ? AtlasColors.rose : AtlasColors.blue)
+                                  ? (isFavTab
+                                        ? AtlasColors.rose
+                                        : AtlasColors.blue)
                                   : Colors.grey.shade200,
                             ),
-                            boxShadow: isSelected ? [AtlasTheme.softShadow] : null,
+                            boxShadow: isSelected
+                                ? [AtlasTheme.softShadow]
+                                : null,
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -198,7 +257,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Icon(
                                   Icons.favorite_rounded,
                                   size: 13,
-                                  color: isSelected ? Colors.white : AtlasColors.rose,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AtlasColors.rose,
                                 ),
                                 const SizedBox(width: 5),
                               ],
@@ -209,7 +270,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: isSelected ? Colors.white : AtlasColors.textPrimary,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AtlasColors.textPrimary,
                                 ),
                               ),
                             ],
@@ -238,7 +301,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       color: AtlasColors.amberLight.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: AtlasColors.amber.withValues(alpha: 0.3)),
+                      border: Border.all(
+                        color: AtlasColors.amber.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -260,7 +325,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
-                                  color: const Color(0xFFB45309).withValues(alpha: 0.9),
+                                  color: const Color(
+                                    0xFFB45309,
+                                  ).withValues(alpha: 0.9),
                                 ),
                               ),
                             ],
@@ -286,7 +353,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-              if (memoryProvider.triageItems.isNotEmpty) const SizedBox(height: 24),
+              if (memoryProvider.triageItems.isNotEmpty)
+                const SizedBox(height: 24),
 
               // Memories List Header
               Row(
@@ -295,7 +363,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     _selectedFilter == 'Favorites'
                         ? 'Favorite Memories'
-                        : (_selectedFilter == 'All' ? 'Recently Saved' : '$_selectedFilter Saves'),
+                        : (_selectedFilter == 'All'
+                              ? 'Recently Saved'
+                              : '$_selectedFilter Saves'),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -318,7 +388,10 @@ class _HomeScreenState extends State<HomeScreen> {
               if (displayedMemories.isEmpty)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 48,
+                    horizontal: 24,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(28),
@@ -365,7 +438,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: displayedMemories.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 14),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     final item = displayedMemories[index];
 
@@ -391,7 +465,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             SizedBox(width: 8),
-                            Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
+                            Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
                           ],
                         ),
                       ),
@@ -400,7 +478,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         memoryProvider.softDeleteMemory(item.id);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Moved "${deletedItem.title}" to Trash'),
+                            content: Text(
+                              'Moved "${deletedItem.title}" to Trash',
+                            ),
                             action: SnackBarAction(
                               label: 'Undo',
                               onPressed: () {
@@ -439,16 +519,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(18),
                                   child: item.imageBytes != null
-                                      ? Image.memory(item.imageBytes!, fit: BoxFit.cover)
+                                      ? Image.memory(
+                                          item.imageBytes!,
+                                          fit: BoxFit.cover,
+                                        )
                                       : (item.imagePath != null
-                                          ? Image.file(File(item.imagePath!), fit: BoxFit.cover)
-                                          : Center(
-                                              child: Icon(
-                                                item.iconData,
-                                                color: AtlasColors.blue,
-                                                size: 24,
-                                              ),
-                                            )),
+                                            ? Image.file(
+                                                File(item.imagePath!),
+                                                fit: BoxFit.cover,
+                                              )
+                                            : Center(
+                                                child: Icon(
+                                                  item.iconData,
+                                                  color: AtlasColors.blue,
+                                                  size: 24,
+                                                ),
+                                              )),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -485,12 +571,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w600,
-                                            color: AtlasColors.purple.withValues(alpha: 0.8),
+                                            color: AtlasColors.purple
+                                                .withValues(alpha: 0.8),
                                           ),
                                         ),
                                         if (item.isFavorite) ...[
                                           const SizedBox(width: 6),
-                                          const Icon(Icons.favorite_rounded, color: AtlasColors.rose, size: 12),
+                                          const Icon(
+                                            Icons.favorite_rounded,
+                                            color: AtlasColors.rose,
+                                            size: 12,
+                                          ),
                                         ],
                                       ],
                                     ),
@@ -499,8 +590,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               IconButton(
                                 icon: Icon(
-                                  item.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                  color: item.isFavorite ? AtlasColors.rose : Colors.grey.shade300,
+                                  item.isFavorite
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  color: item.isFavorite
+                                      ? AtlasColors.rose
+                                      : Colors.grey.shade300,
                                   size: 20,
                                 ),
                                 onPressed: () {
