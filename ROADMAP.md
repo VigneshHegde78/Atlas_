@@ -8,13 +8,13 @@ This roadmap breaks down the development of **ATLAS (Personal Memory OS)** into 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                             ATLAS ROADMAP                                   │
 ├──────────────────┬──────────────────┬──────────────────┬────────────────────┤
-│  ✅ UNIT 1       │  ⏳ UNIT 2       │  ⏳ UNIT 3       │  ⏳ UNIT 4         │
+│  ✅ UNIT 1       │  ✅ UNIT 2       │  ✅ UNIT 3       │  ✅ UNIT 4         │
 │  Local Database  │  On-Device OCR & │  Rich URL & Web  │  Full-Text &       │
 │  & Persistence   │  AI Intelligence │  Metadata        │  Semantic Search   │
 ├──────────────────┼──────────────────┼──────────────────┼────────────────────┤
-│  ⏳ UNIT 5       │  ⏳ UNIT 6       │  ⏳ UNIT 7       │  ⏳ UNIT 8         │
-│  Geo-Spatial 3D  │  PDF & Voice     │  Collections,    │  Cloud Sync &      │
-│  Globe Location  │  Memory Notes    │  Tags & Export   │  End-to-End Crypto │
+│  ✅ UNIT 5       │  ✅ UNIT 6       │  🎯 UNIT 7       │  ⏳ UNIT 8         │
+│  3D Data World   │  PDF & Voice     │  Collections,    │  Cloud Sync &      │
+│  & Universe Sky  │  Memory Notes    │  Tags & Export   │  End-to-End Crypto │
 └──────────────────┴──────────────────┴──────────────────┴────────────────────┘
 ```
 
@@ -40,87 +40,106 @@ This roadmap breaks down the development of **ATLAS (Personal Memory OS)** into 
 ---
 
 ## 🧠 Unit 2: On-Device OCR & AI Semantic Intelligence
-> **Status:** 🎯 Next Priority
-> **Goal:** Replace simulated keyword rules with real on-device text extraction from screenshots/images and LLM summarization.
+> **Status:** ✅ Completed
+> **Goal:** Replace simulated keyword rules with real on-device text extraction from screenshots/images, structured entity extraction, and LLM summarization.
 
 ### Key Deliverables:
-- [ ] **On-Device OCR (`google_mlkit_text_recognition`)**:
+- [x] **On-Device OCR (`OcrService`)**:
   - Extract all visible text from camera roll screenshots and shared images on-device with zero latency.
-  - Store `extractedText` in database for search indexing.
-- [ ] **AI Summarization & Entity Extraction (Gemini API / Local AI)**:
-  - Generate a concise 2-sentence *"AI Understanding"* summary.
-  - Extract structured entities:
-    - **Finance**: Merchant, total amount, currency, date.
-    - **Recipes**: Prep time, ingredients list, cooking instructions.
-    - **Travel**: Flight number, departure/arrival airport, booking confirmation codes.
-    - **Development**: Programming language, code snippet, bug solution.
-- [ ] **Smart Auto-Categorization**: Automatically classify saves without requiring manual triage.
+  - Normalize text blocks, strip status bar artifacts, and persist `extractedText` in SQLite database (`v2` migration) for indexing and clipboard export.
+- [x] **AI Summarization & Entity Extraction (`AiIntelligenceService`)**:
+  - Generate a concise 2-sentence *"AI Understanding"* summary synthesizing context and takeaways.
+  - Extract typed structured entities:
+    - **Finance**: Merchant, total amount, currency (`₹`, `$`, `€`), date, payment method.
+    - **Recipes**: Prep time, cook time, servings, itemized ingredients checklist, cooking instructions.
+    - **Travel**: Flight number, airline, departure/arrival route (`DEL ➔ GOI`), booking PNR reference, travel date, seat.
+    - **Development**: Programming language, monospace syntax code snippet with one-tap copy, bug solution.
+    - **Design Systems & Shopping**: Color tokens, typography specs, product prices.
+- [x] **Smart Auto-Categorization & Confidence Scoring**:
+  - Automatically classify saves into categories with confidence scores, surfacing smart recommendations in triage.
+- [x] **Universal Semantic & OCR Search**:
+  - Multi-field search querying `title`, `content`, `aiSummary`, `extractedText`, `tags`, and `structuredEntities` with contextual match badges (`OCR IMAGE TEXT`, `AI UNDERSTANDING`, `STRUCTURED ENTITY`).
 
 ---
 
 ## 🌐 Unit 3: Rich Web URL Previews & Reader Mode
-> **Status:** ⏳ Planned
+> **Status:** ✅ Completed
 > **Goal:** Turn raw shared links into rich visual memory cards with favicons, cover images, and readable article content.
 
 ### Key Deliverables:
-- [ ] **OpenGraph Metadata Fetcher (`metadata_fetch` / `http`)**:
-  - Extract OpenGraph title, description, high-resolution banner image, and site favicon when URLs are shared.
-- [ ] **In-App Reader & Web Viewer**:
-  - Reader View for clean distraction-free article reading without ads.
-  - Custom chrome tabs / webview launcher for viewing live web pages.
-- [ ] **Offline Web Snapshot**: Cache readable article markdown/text for offline review.
+- [x] **OpenGraph Metadata Fetcher (`UrlMetadataService`)**:
+  - Scrapes OpenGraph tags (`og:title`, `og:description`, `og:image`, `og:site_name`, `faviconUrl`, `readingTimeMinutes`) using native, zero-dependency `HttpClient`.
+  - Offline heuristic fallbacks when device is disconnected.
+- [x] **In-App Reader Mode Screen (`ReaderModeScreen`)**:
+  - Distraction-free article reader mode with light, warm sepia, and dark slate themes.
+  - Dynamic font size scaler (15pt to 22pt) and real-time scroll progress bar.
+  - Quick actions to copy clean text and launch original URL in external browser.
+- [x] **Contextual Detail & Image Viewers**:
+  - Interactive full-screen image viewer with pinch-to-zoom for screenshots.
+  - Contextual action buttons ("Reader View", "View Full Image", "Edit Notes") resolving UI leakage.
+- [x] **Screenshot Ingestion & Classification Fixes**:
+  - Dedicated screenshot pipeline preserving `MemoryType.screenshot` with `Icons.image_rounded` instead of defaulting to generic notes.
 
 ---
 
 ## 🔍 Unit 4: Universal Semantic & Full-Text Search (FTS5)
-> **Status:** ⏳ Planned
-> **Goal:** Enable users to find anything instantly using natural language, filter combinations, and voice input.
+> **Status:** ✅ Completed
+> **Goal:** Enable users to find anything instantly using natural language, multi-dimensional filters, search history, and interactive voice input.
 
 ### Key Deliverables:
-- [ ] **SQLite FTS5 Full-Text Search**:
-  - Instant sub-millisecond search across title, notes, OCR extracted image text, AI summaries, and URLs.
-- [ ] **Multi-Dimensional Filters**:
-  - Filter by memory type pills (Links, Screenshots, PDFs, Notes).
-  - Date-range filter (Today, This Week, Last Month, Custom Range).
-  - Category and tag multi-selection.
-- [ ] **Voice Search (`speech_to_text`)**:
-  - Tap microphone icon in search bar to speak queries in natural language (*"Find that receipt from last Friday"*).
-- [ ] **Search History & Suggested Queries**:
-  - Recent searches list, saved searches, and dynamic context pills.
+- [x] **Universal Semantic & Full-Text Search**:
+  - Instant sub-millisecond search across title, notes, OCR extracted image text, AI summaries, structured entities, categories, and tags.
+- [x] **Multi-Dimensional Filters**:
+  - Filter by memory type pills (`All`, `Screenshots`, `Links`, `Notes`, `PDFs`).
+  - Date-range filter (`All Time`, `Today`, `This Week`, `Past Month`).
+  - Category selector chips (`Finance`, `Recipes`, `Travel`, `Development`, `Design`, `Shopping`, `Work`, `Reference`).
+  - Favorites-only toggle filter.
+- [x] **Voice Search Experience**:
+  - Tap microphone icon in search bar to open voice listening dialog with animated soundwave visualizer and sample prompts (*"Show coffee receipt from this week"*, *"Paneer recipe"*).
+- [x] **Search History & Dynamic Suggested Queries**:
+  - Persisted recent searches list with tap-to-search and clear history options.
+  - Contextual suggestion chips and overview card explaining semantic intelligence.
+- [x] **Clarify & Triage Queue Routing**:
+  - Low confidence (`< 0.90`) or unclassified saves automatically route to the **Clarify (Needs Review)** queue so users are alerted on the Home Screen to organize them.
 
 ---
 
-## 🌍 Unit 5: Geolocation & Interactive Globe Spatial Pinning
-> **Status:** ⏳ Planned
-> **Goal:** Evolve the Globe Explorer from category projections into real geographic mapping of memories.
+## 🌐 Unit 5: 3D Data World & Interactive Spatial Universe Explorer
+> **Status:** ✅ Completed
+> **Goal:** Elevate the 3D Data World Globe and Constellation Star Sky into an immersive, aesthetic spatial navigation experience for all personal memories (cluster nodes, interactive orbital navigation, and synced card decks) with zero external map dependencies.
 
 ### Key Deliverables:
-- [ ] **EXIF & AI Location Extraction**:
-  - Parse GPS coordinates from photo metadata (if permitted).
-  - Extract location entities from travel booking receipts, flight passes, and restaurant notes (e.g. "Goa", "Tokyo", "Paris").
-- [ ] **Geocoding & Real Map Coordinates**:
-  - Map extracted city/place names to real latitude/longitude coordinates on the 3D globe.
-- [ ] **Globe Clustering & Focus Zoom**:
-  - Interactive clustering: Tapping a region smoothly animates globe rotation to focus on that cluster and displays all associated cards in the swipe deck.
-- [ ] **Manual Location Tagging**: Allow users to attach a location to any memory note.
+- [x] **3D Data World Sphere**:
+  - Orthographic 3D projected spherical rotation with realistic inertia, damping, and multi-layer cyan/purple atmospheric edge glow.
+  - Dynamic memory nodes positioned across spherical coordinates representing memory clusters (Finance, Recipes, Travel, Development, Design Systems, Shopping, Work, Reference).
+- [x] **Constellation Star Sky Mode**:
+  - Seamless toggle between 3D Data World Orb and 2D Starry Universe Sky where memories appear as glowing stars connected by semantic constellation links.
+- [x] **Interactive Node Focus & Synced Card Deck**:
+  - Tapping a category node smoothly rotates the Data World to bring that cluster to the foreground.
+  - Dynamically updates the bottom floating memory card deck with haptic feedback to browse that category's items with direct navigation to `DetailScreen`.
+- [x] **Orbital Filter Pills & Speed Controls**:
+  - Floating top category filter pills to highlight specific memory nodes on the globe/sky.
+  - Auto-orbit continuous rotation with play/pause and manual gesture physics.
 
 ---
 
 ## 📄 Unit 6: PDF, Documents & Voice Memo Capture
-> **Status:** ⏳ Planned
+> **Status:** ✅ Completed
 > **Goal:** Expand Atlas into a multimedia vault capable of handling PDFs, scans, and audio recordings.
 
 ### Key Deliverables:
-- [ ] **Document & PDF Importer (`file_picker` + `pdfx`)**:
-  - Import PDF files, auto-render front-page thumbnail, and extract searchable text.
-- [ ] **Voice Notes & Audio Recording (`record` + `audioplayers`)**:
-  - Quick voice memo widget on Home / Add Memory sheet.
-  - Automatic speech-to-text transcription saved as a searchable memory note with playback controls.
+- [x] **Document & PDF Importer**:
+  - Ingestion of PDF files with metadata extraction (file size, page counts, document text), AI semantic indexing, and copyable text inspection.
+- [x] **Voice Notes & Audio Recording**:
+  - Dedicated Voice Memo capture interface in `AddMemorySheet` with live elapsed timer, animated soundwave visualizer, and auto speech-to-text transcription.
+  - Interactive Audio Player Card in `DetailScreen` with Play/Pause simulation, playback progress bar, and transcript viewer.
+- [x] **Multi-Field Search & Filter Integration**:
+  - `Voice` and `PDFs` type filters in `SearchScreen` and instant lookup across voice transcripts and document text.
 
 ---
 
 ## 📁 Unit 7: Collections, Smart Albums & Bulk Organization
-> **Status:** ⏳ Planned
+> **Status:** 🎯 Next Priority
 > **Goal:** Enable hierarchical organization, curated collections, and bulk management.
 
 ### Key Deliverables:

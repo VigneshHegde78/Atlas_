@@ -34,7 +34,7 @@ class _ShareProcessingScreenState extends State<ShareProcessingScreen>
     final memoryProvider = Provider.of<MemoryProvider>(context);
 
     return Scaffold(
-      backgroundColor: AtlasColors.blue.withOpacity(0.95),
+      backgroundColor: AtlasColors.blue.withValues(alpha: 0.95),
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -53,7 +53,7 @@ class _ShareProcessingScreenState extends State<ShareProcessingScreen>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             width: 3,
                           ),
                         ),
@@ -72,7 +72,7 @@ class _ShareProcessingScreenState extends State<ShareProcessingScreen>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 16,
                           ),
                         ],
@@ -111,7 +111,7 @@ class _ShareProcessingScreenState extends State<ShareProcessingScreen>
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       height: 1.4,
                     ),
                   ),

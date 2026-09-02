@@ -6,8 +6,11 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/memory_item.dart';
+import '../services/ai_intelligence_service.dart';
 import '../services/firebase_sync_service.dart';
 import '../services/local_database_service.dart';
+import '../services/ocr_service.dart';
+import '../services/url_metadata_service.dart';
 
 class MemoryProvider extends ChangeNotifier {
   bool _hasPhotoPermission = true;
@@ -41,9 +44,18 @@ class MemoryProvider extends ChangeNotifier {
       sourceApp: 'Arc Browser',
       type: MemoryType.link,
       savedAt: DateTime.now().subtract(const Duration(hours: 2)),
-      aiSummary: 'A comprehensive guide to Linear\'s minimalist interaction design. Focuses on high contrast typography, keyboard-first navigation, and using deep navy accents to guide user attention.',
+      aiSummary:
+          'A comprehensive guide to Linear\'s minimalist interaction design. Focuses on high contrast typography, keyboard-first navigation, and using deep navy accents to guide user attention.',
       category: 'Design Systems',
       url: 'https://linear.app/docs',
+      extractedText:
+          'Linear Design System documentation and token reference. Color tokens: Primary #0B192C, Accent #8B5CF6.',
+      structuredEntities: {
+        'type': 'design',
+        'palette': ['#0B192C', '#8B5CF6', '#10B981', '#F8FAFC'],
+        'typography': 'Outfit, Inter',
+      },
+      tags: ['design', 'linear', 'ui', 'tokens'],
       iconBgColor: const Color(0xFFEFF6FF),
       iconData: Icons.link_rounded,
     ),
@@ -54,9 +66,33 @@ class MemoryProvider extends ChangeNotifier {
       sourceApp: 'Instagram',
       type: MemoryType.screenshot,
       savedAt: DateTime.now().subtract(const Duration(days: 1)),
-      aiSummary: 'Authentic paneer tikka recipe card. Key ingredients include paneer cubes, thick yogurt, Kashmiri red chili, and lemon juice.',
+      aiSummary:
+          'Authentic paneer tikka recipe card. Key ingredients include paneer cubes, thick yogurt, Kashmiri red chili, and lemon juice.',
       category: 'Recipes',
       snippet: '...marinate paneer cubes in yogurt...',
+      extractedText:
+          'Recipe: Authentic Paneer Tikka\nPrep Time: 20 mins | Cook Time: 15 mins | Servings: 4\nIngredients:\n• 250g Fresh Paneer cubes\n• 1/2 cup Greek yogurt\n• 1 tbsp Kashmiri red chili\n• 1 tbsp Ginger-garlic paste\n• 1 tsp Garam masala\nInstructions: Coat paneer cubes and marinate for 30 minutes. Grill or air-fry at 200°C for 15 minutes.',
+      structuredEntities: {
+        'type': 'recipe',
+        'recipeTitle': 'Authentic Paneer Tikka',
+        'prepTime': '20 mins',
+        'cookTime': '15 mins',
+        'servings': '4',
+        'ingredients': [
+          '250g Fresh Paneer cubes',
+          '1/2 cup Greek yogurt (hung curd)',
+          '1 tbsp Kashmiri red chili powder',
+          '1 tbsp Ginger-garlic paste',
+          '1 tsp Garam masala & Kasuri methi',
+          '1 tbsp Mustard oil & Lemon juice',
+        ],
+        'instructions': [
+          'Whisk yogurt with spices and garlic paste.',
+          'Coat paneer cubes generously and marinate for 30 minutes.',
+          'Grill or air-fry at 200°C for 12-15 minutes until charred.',
+        ],
+      },
+      tags: ['recipes', 'food', 'cooking', 'paneer_tikka'],
       iconBgColor: const Color(0xFFECFDF5),
       iconData: Icons.restaurant_rounded,
     ),
@@ -67,8 +103,23 @@ class MemoryProvider extends ChangeNotifier {
       sourceApp: 'Safari Browser',
       type: MemoryType.note,
       savedAt: DateTime.now().subtract(const Duration(days: 3)),
-      aiSummary: 'Flight options and itinerary ideas for Tokyo trip in Autumn. Highlights Narita vs Haneda routes and bullet train passes.',
+      aiSummary:
+          'Flight options and itinerary ideas for Tokyo trip in Autumn. Highlights Narita vs Haneda routes and bullet train passes.',
       category: 'Travel',
+      extractedText:
+          'Flight: 6E-2042 (IndiGo)\nRoute: DEL ➔ HND\nPNR: G7XP9Q\nTravel Date: 15 Oct 2026\nSeat: 12F',
+      structuredEntities: {
+        'type': 'travel',
+        'flightNumber': '6E-2042',
+        'airline': 'IndiGo',
+        'route': 'DEL ➔ HND (Tokyo)',
+        'departureAirport': 'DEL (Delhi)',
+        'arrivalAirport': 'HND (Haneda Tokyo)',
+        'bookingRef': 'G7XP9Q',
+        'travelDate': '15 Oct 2026',
+        'seat': '12F',
+      },
+      tags: ['travel', 'flight', 'tokyo', 'japan'],
       iconBgColor: const Color(0xFFFFFBEB),
       iconData: Icons.flight_takeoff_rounded,
     ),
@@ -79,8 +130,18 @@ class MemoryProvider extends ChangeNotifier {
       sourceApp: 'Chrome Browser',
       type: MemoryType.link,
       savedAt: DateTime.now().subtract(const Duration(days: 4)),
-      aiSummary: 'Sneakers wishlist with price tracking alert set for seasonal sale discount.',
+      aiSummary:
+          'Sneakers wishlist with price tracking alert set for seasonal sale discount.',
       category: 'Shopping',
+      extractedText:
+          'Nike Air Max Sneakers. Discounted price: ₹2,999 on Nike Official Store.',
+      structuredEntities: {
+        'type': 'shopping',
+        'product': 'Nike Air Max Sneakers',
+        'price': '₹2,999',
+        'store': 'Nike Store',
+      },
+      tags: ['shopping', 'wishlist', 'nike'],
       iconBgColor: const Color(0xFFFFF1F2),
       iconData: Icons.shopping_bag_rounded,
     ),
@@ -129,8 +190,12 @@ class MemoryProvider extends ChangeNotifier {
   List<MemoryItem> get archivedMemories => _archivedMemories;
   List<MemoryItem> get trashMemories => _trashMemories;
   List<MemoryItem> get triageItems => _triageItems;
-  List<Map<String, dynamic>> get availableScreenshots => _availableScreenshots;
-  List<AssetEntity> get deviceScreenshots => _deviceScreenshots;
+  List<Map<String, dynamic>> get availableScreenshots => _availableScreenshots
+      .where((s) => !_permittedScreenshotIds.contains(s['id']))
+      .toList();
+  List<AssetEntity> get deviceScreenshots => _deviceScreenshots
+      .where((e) => !_permittedScreenshotIds.contains(e.id))
+      .toList();
   bool get isLoadingScreenshots => _isLoadingScreenshots;
   List<String> get permittedScreenshotIds => _permittedScreenshotIds;
   bool get isProcessingShare => _isProcessingShare;
@@ -166,7 +231,8 @@ class MemoryProvider extends ChangeNotifier {
         sourceApp: 'Medium',
         type: MemoryType.note,
         savedAt: DateTime.now().subtract(const Duration(hours: 12)),
-        aiSummary: 'Comparison breakdown highlighting performance and UI fidelity differences.',
+        aiSummary:
+            'Comparison breakdown highlighting performance and UI fidelity differences.',
         category: 'Uncategorized',
         iconBgColor: const Color(0xFFF5F3FF),
         iconData: Icons.description_rounded,
@@ -182,11 +248,13 @@ class MemoryProvider extends ChangeNotifier {
     });
 
     await fb.initialize();
-    fb.startRealtimeSync(onLocalDataChanged: (updated) {
-      _memories = updated;
-      _reloadAuxiliaryLists();
-      notifyListeners();
-    });
+    fb.startRealtimeSync(
+      onLocalDataChanged: (updated) {
+        _memories = updated;
+        _reloadAuxiliaryLists();
+        notifyListeners();
+      },
+    );
 
     // Initial background sync
     syncNow();
@@ -231,7 +299,8 @@ class MemoryProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _hasPhotoPermission = prefs.getBool('hasPhotoPermission') ?? true;
-      _permittedScreenshotIds = prefs.getStringList('permittedScreenshotIds') ?? [];
+      _permittedScreenshotIds =
+          prefs.getStringList('permittedScreenshotIds') ?? [];
     } catch (e) {
       debugPrint("Error restoring preferences: $e");
     }
@@ -242,7 +311,10 @@ class MemoryProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('hasPhotoPermission', _hasPhotoPermission);
-      await prefs.setStringList('permittedScreenshotIds', _permittedScreenshotIds);
+      await prefs.setStringList(
+        'permittedScreenshotIds',
+        _permittedScreenshotIds,
+      );
     } catch (e) {
       debugPrint("Error saving preferences: $e");
     }
@@ -260,22 +332,165 @@ class MemoryProvider extends ChangeNotifier {
     final trimmedUrl = url?.trim() ?? '';
     final isLink = trimmedUrl.isNotEmpty;
 
+    UrlMetadata? urlMeta;
+    if (isLink) {
+      urlMeta = await UrlMetadataService.instance.fetchMetadata(trimmedUrl);
+    }
+
+    // Run AI Semantic Intelligence on the content & OpenGraph metadata
+    final combinedForAi = isLink
+        ? '${urlMeta?.title ?? ''} ${urlMeta?.description ?? ''} $trimmed'
+        : trimmed;
+
+    final aiResult = await AiIntelligenceService.instance.analyzeContent(
+      text: combinedForAi,
+      url: isLink ? trimmedUrl : null,
+      type: isLink ? MemoryType.link : MemoryType.note,
+    );
+
+    final resolvedCategory = category != 'Uncategorized'
+        ? category
+        : aiResult.category;
+    final resolvedTags = tags.isNotEmpty ? tags : aiResult.tags;
+
+    final resolvedTitle = isLink
+        ? (urlMeta?.title.isNotEmpty == true
+              ? urlMeta!.title
+              : _linkTitle(trimmedUrl))
+        : (trimmed.isNotEmpty ? _textTitle(trimmed) : aiResult.suggestedTitle);
+
     final item = MemoryItem(
       id: 'manual_${DateTime.now().microsecondsSinceEpoch}',
-      title: isLink ? _linkTitle(trimmedUrl) : _textTitle(trimmed),
-      subtitle: isLink ? trimmedUrl : 'Note • Just Now',
-      sourceApp: 'Atlas',
+      title: resolvedTitle,
+      subtitle: isLink ? (urlMeta?.siteName ?? trimmedUrl) : 'Note • Just Now',
+      sourceApp: isLink ? (urlMeta?.siteName ?? 'Web') : 'Atlas',
       type: isLink ? MemoryType.link : MemoryType.note,
       savedAt: DateTime.now(),
-      aiSummary: trimmed.isEmpty ? trimmedUrl : trimmed,
-      category: category,
+      aiSummary: aiResult.aiSummary,
+      category: resolvedCategory,
       url: isLink ? trimmedUrl : null,
-      snippet: isLink ? trimmed : null,
-      content: trimmed,
-      tags: tags,
+      imagePath: urlMeta?.imageUrl,
+      snippet: isLink
+          ? (urlMeta?.description.isNotEmpty == true
+                ? urlMeta!.description
+                : trimmed)
+          : null,
+      content: urlMeta?.articleBody ?? trimmed,
+      extractedText: trimmed.isNotEmpty ? trimmed : null,
+      structuredEntities: aiResult.structuredEntities,
+      tags: resolvedTags,
       syncStatus: SyncStatus.pendingUpload,
-      iconBgColor: isLink ? const Color(0xFFEFF6FF) : const Color(0xFFF5F3FF),
-      iconData: isLink ? Icons.link_rounded : Icons.notes_rounded,
+      iconBgColor: aiResult.iconBgColor,
+      iconData: aiResult.iconData,
+    );
+
+    await LocalDatabaseService.instance.insertMemory(item);
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> addVoiceMemory({
+    required String transcript,
+    required Duration duration,
+    String? title,
+    String category = 'Uncategorized',
+    List<String> tags = const [],
+  }) async {
+    final cleanTranscript = transcript.trim();
+    final aiResult = await AiIntelligenceService.instance.analyzeContent(
+      text: cleanTranscript,
+      title: title,
+      type: MemoryType.audio,
+    );
+
+    final durationSec = duration.inSeconds;
+    final minutes = durationSec ~/ 60;
+    final seconds = durationSec % 60;
+    final durationStr =
+        '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+
+    final resolvedCategory = category != 'Uncategorized'
+        ? category
+        : aiResult.category;
+    final resolvedTags = tags.isNotEmpty ? tags : aiResult.tags;
+    final resolvedTitle = title != null && title.trim().isNotEmpty
+        ? title.trim()
+        : aiResult.suggestedTitle;
+
+    final item = MemoryItem(
+      id: 'voice_${DateTime.now().microsecondsSinceEpoch}',
+      title: resolvedTitle,
+      subtitle: 'Voice Note ($durationStr) • Just Now',
+      sourceApp: 'Voice Recorder',
+      type: MemoryType.audio,
+      savedAt: DateTime.now(),
+      aiSummary: aiResult.aiSummary,
+      category: resolvedCategory,
+      snippet: cleanTranscript,
+      content: cleanTranscript,
+      extractedText: cleanTranscript,
+      structuredEntities: {
+        'audioDurationSeconds': durationSec,
+        'audioDurationFormatted': durationStr,
+        ...?aiResult.structuredEntities,
+      },
+      tags: resolvedTags,
+      syncStatus: SyncStatus.pendingUpload,
+      iconBgColor: aiResult.iconBgColor,
+      iconData: aiResult.iconData,
+    );
+
+    await LocalDatabaseService.instance.insertMemory(item);
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> addDocumentMemory({
+    required String title,
+    required String content,
+    required String fileName,
+    int pageCount = 1,
+    String category = 'Uncategorized',
+    List<String> tags = const [],
+  }) async {
+    final cleanContent = content.trim();
+    final aiResult = await AiIntelligenceService.instance.analyzeContent(
+      text: cleanContent,
+      title: title,
+      type: MemoryType.pdf,
+    );
+
+    final resolvedCategory = category != 'Uncategorized'
+        ? category
+        : aiResult.category;
+    final resolvedTags = tags.isNotEmpty ? tags : aiResult.tags;
+    final resolvedTitle = title.trim().isNotEmpty
+        ? title.trim()
+        : aiResult.suggestedTitle;
+
+    final item = MemoryItem(
+      id: 'doc_${DateTime.now().microsecondsSinceEpoch}',
+      title: resolvedTitle,
+      subtitle: 'PDF Document ($pageCount pgs) • Just Now',
+      sourceApp: 'Files',
+      type: MemoryType.pdf,
+      savedAt: DateTime.now(),
+      aiSummary: aiResult.aiSummary,
+      category: resolvedCategory,
+      snippet: cleanContent.length > 150
+          ? '${cleanContent.substring(0, 147)}...'
+          : cleanContent,
+      content: cleanContent,
+      extractedText: cleanContent,
+      structuredEntities: {
+        'fileName': fileName,
+        'pageCount': pageCount,
+        ...?aiResult.structuredEntities,
+      },
+      tags: resolvedTags,
+      syncStatus: SyncStatus.pendingUpload,
+      iconBgColor: aiResult.iconBgColor,
+      iconData: aiResult.iconData,
     );
 
     await LocalDatabaseService.instance.insertMemory(item);
@@ -349,16 +564,25 @@ class MemoryProvider extends ChangeNotifier {
     final index = _triageItems.indexWhere((item) => item.id == id);
     if (index != -1) {
       final item = _triageItems.removeAt(index);
+      final tagsList = List<String>.from(item.tags);
+      if (!tagsList.contains(category.toLowerCase())) {
+        tagsList.add(category.toLowerCase());
+      }
       final resolved = MemoryItem(
         id: item.id,
         title: item.title,
-        subtitle: item.subtitle,
+        subtitle: '${item.sourceApp} • $category',
         sourceApp: item.sourceApp,
         type: item.type,
         savedAt: item.savedAt,
         aiSummary: item.aiSummary,
         category: category,
         url: item.url,
+        imagePath: item.imagePath,
+        imageBytes: item.imageBytes,
+        extractedText: item.extractedText,
+        structuredEntities: item.structuredEntities,
+        tags: tagsList,
         syncStatus: SyncStatus.pendingUpload,
         iconBgColor: item.iconBgColor,
         iconData: item.iconData,
@@ -366,65 +590,50 @@ class MemoryProvider extends ChangeNotifier {
 
       await LocalDatabaseService.instance.insertMemory(resolved);
       await reloadMemoriesFromDb();
+      notifyListeners();
       syncNow();
     }
   }
 
-  // --- Screenshot Scanner & Importer ---
+  // --- Re-analyze with AI ---
 
-  Map<String, dynamic> _analyzeScreenshotContent(String rawTitle, String? filePath) {
-    final text = (rawTitle + ' ' + (filePath ?? '')).toLowerCase();
+  Future<void> reanalyzeMemoryWithAi(String id) async {
+    final existingIndex = _memories.indexWhere((m) => m.id == id);
+    if (existingIndex == -1) return;
+    final item = _memories[existingIndex];
 
-    if (text.contains('bill') || text.contains('receipt') || text.contains('pay') || text.contains('bank') || text.contains('money') || text.contains('rupee') || text.contains('dollar')) {
-      return {
-        'category': 'Finance',
-        'title': rawTitle.contains('Screenshot') ? 'Transaction Receipt' : rawTitle,
-        'aiSummary': 'Parsed financial receipt and transaction details. Automatically indexed under Finance.',
-        'iconData': Icons.receipt_long_rounded,
-        'iconBgColor': const Color(0xFFEFF6FF),
-      };
-    } else if (text.contains('food') || text.contains('recipe') || text.contains('dish') || text.contains('cook') || text.contains('paneer') || text.contains('pizza') || text.contains('meal')) {
-      return {
-        'category': 'Recipes',
-        'title': rawTitle.contains('Screenshot') ? 'Food & Cooking Recipe' : rawTitle,
-        'aiSummary': 'Detected recipe ingredients and cooking steps. Automatically indexed under Recipes.',
-        'iconData': Icons.restaurant_rounded,
-        'iconBgColor': const Color(0xFFECFDF5),
-      };
-    } else if (text.contains('flight') || text.contains('ticket') || text.contains('hotel') || text.contains('airbnb') || text.contains('trip') || text.contains('goa') || text.contains('tokyo') || text.contains('travel')) {
-      return {
-        'category': 'Travel',
-        'title': rawTitle.contains('Screenshot') ? 'Travel Pass & Itinerary' : rawTitle,
-        'aiSummary': 'Identified travel booking itinerary and flight confirmation. Automatically indexed under Travel.',
-        'iconData': Icons.flight_takeoff_rounded,
-        'iconBgColor': const Color(0xFFFFFBEB),
-      };
-    } else if (text.contains('design') || text.contains('color') || text.contains('ui') || text.contains('figma') || text.contains('palette') || text.contains('font') || text.contains('logo')) {
-      return {
-        'category': 'Design Systems',
-        'title': rawTitle.contains('Screenshot') ? 'UI Design Inspiration' : rawTitle,
-        'aiSummary': 'Extracted UI components, color tokens, and layout ideas. Automatically indexed under Design Systems.',
-        'iconData': Icons.palette_rounded,
-        'iconBgColor': const Color(0xFFF3E8FF),
-      };
-    } else if (text.contains('code') || text.contains('python') || text.contains('flutter') || text.contains('dev') || text.contains('git') || text.contains('script') || text.contains('bug')) {
-      return {
-        'category': 'Development',
-        'title': rawTitle.contains('Screenshot') ? 'Code & Tech Snippet' : rawTitle,
-        'aiSummary': 'Extracted programming code snippet and technical reference notes. Automatically indexed under Development.',
-        'iconData': Icons.code_rounded,
-        'iconBgColor': const Color(0xFFEEF2FF),
-      };
-    } else {
-      return {
-        'category': 'Reference',
-        'title': rawTitle,
-        'aiSummary': 'Analyzed screenshot content. Automatically indexed and saved into ATLAS Memory Space.',
-        'iconData': Icons.image_rounded,
-        'iconBgColor': const Color(0xFFF8FAFC),
-      };
+    String textToAnalyze = item.extractedText ?? item.content;
+    if (textToAnalyze.isEmpty && item.imagePath != null) {
+      textToAnalyze = await OcrService.instance.recognizeTextFromPath(
+        item.imagePath!,
+      );
     }
+
+    final aiResult = await AiIntelligenceService.instance.analyzeContent(
+      text: textToAnalyze.isNotEmpty ? textToAnalyze : item.title,
+      title: item.title,
+      sourceApp: item.sourceApp,
+      type: item.type,
+      url: item.url,
+    );
+
+    final updated = item.copyWith(
+      title: aiResult.suggestedTitle,
+      category: aiResult.category,
+      aiSummary: aiResult.aiSummary,
+      extractedText: textToAnalyze.isNotEmpty
+          ? textToAnalyze
+          : item.extractedText,
+      structuredEntities: aiResult.structuredEntities,
+      tags: aiResult.tags,
+      iconBgColor: aiResult.iconBgColor,
+      iconData: aiResult.iconData,
+    );
+
+    await updateMemory(updated);
   }
+
+  // --- Screenshot Scanner & Importer ---
 
   Future<void> loadDeviceScreenshots() async {
     _isLoadingScreenshots = true;
@@ -446,10 +655,8 @@ class MemoryProvider extends ChangeNotifier {
             orElse: () => paths.first,
           );
 
-          final List<AssetEntity> entities = await targetAlbum.getAssetListPaged(
-            page: 0,
-            size: 40,
-          );
+          final List<AssetEntity> entities = await targetAlbum
+              .getAssetListPaged(page: 0, size: 40);
 
           _deviceScreenshots = entities;
         }
@@ -464,7 +671,9 @@ class MemoryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> grantRealScreenshotAccess(List<AssetEntity> selectedEntities) async {
+  Future<void> grantRealScreenshotAccess(
+    List<AssetEntity> selectedEntities,
+  ) async {
     for (AssetEntity entity in selectedEntities) {
       try {
         if (!_permittedScreenshotIds.contains(entity.id)) {
@@ -473,25 +682,55 @@ class MemoryProvider extends ChangeNotifier {
           final file = await entity.file;
           final filePath = file?.path;
 
-          final rawTitle = 'Screenshot (${entity.createDateTime.day}/${entity.createDateTime.month})';
-          final analysis = _analyzeScreenshotContent(rawTitle, filePath);
+          // 1. Run On-Device OCR Text Extraction
+          String extractedText = '';
+          if (filePath != null) {
+            extractedText = await OcrService.instance.recognizeTextFromPath(
+              filePath,
+            );
+          }
+
+          // 2. Run AI Semantic Intelligence on Extracted Text
+          final dateStr =
+              '${entity.createDateTime.day}/${entity.createDateTime.month}/${entity.createDateTime.year}';
+          final rawTitle = 'Screenshot ($dateStr)';
+          final aiResult = await AiIntelligenceService.instance.analyzeContent(
+            text: extractedText.isNotEmpty
+                ? extractedText
+                : 'Visual screenshot capture $dateStr',
+            title: rawTitle,
+            sourceApp: 'Photos',
+            type: MemoryType.screenshot,
+          );
 
           final item = MemoryItem(
             id: 'real_shot_${entity.id}',
-            title: analysis['title'],
-            subtitle: 'Device Gallery • ${analysis['category']}',
+            title: aiResult.suggestedTitle,
+            subtitle: 'Device Gallery • ${aiResult.category}',
             sourceApp: 'Photos',
             type: MemoryType.screenshot,
             savedAt: entity.createDateTime,
-            aiSummary: analysis['aiSummary'],
-            category: analysis['category'],
+            aiSummary: aiResult.aiSummary,
+            category: aiResult.category,
             imagePath: filePath,
+            extractedText: extractedText.isNotEmpty ? extractedText : null,
+            structuredEntities: aiResult.structuredEntities,
+            tags: aiResult.tags,
             syncStatus: SyncStatus.pendingUpload,
-            iconBgColor: analysis['iconBgColor'],
-            iconData: analysis['iconData'],
+            iconBgColor: aiResult.iconBgColor,
+            iconData: aiResult.iconData,
           );
 
-          await LocalDatabaseService.instance.insertMemory(item);
+          final bool needsClarification =
+              aiResult.confidence < 0.90 ||
+              aiResult.category == 'Uncategorized' ||
+              aiResult.category == 'Screenshots';
+
+          if (needsClarification) {
+            _triageItems.add(item);
+          } else {
+            await LocalDatabaseService.instance.insertMemory(item);
+          }
         }
       } catch (e) {
         debugPrint("Error processing entity ${entity.id}: $e");
@@ -499,6 +738,7 @@ class MemoryProvider extends ChangeNotifier {
     }
     _savePreferences();
     await reloadMemoriesFromDb();
+    notifyListeners();
     syncNow();
   }
 
@@ -514,23 +754,85 @@ class MemoryProvider extends ChangeNotifier {
           );
 
           final String rawTitle = shot['title'];
-          final analysis = _analyzeScreenshotContent(rawTitle, null);
+          String ocrMockText = '';
+
+          if (id == 'shot_1' ||
+              rawTitle.contains('Bill') ||
+              rawTitle.contains('Receipt')) {
+            ocrMockText = '''INVOICE / RECEIPT
+Merchant: Cafe Blue Sea
+Date: 02 Sep 2026, 14:30
+Item 1: Cold Brew Coffee x 2 - INR 480.00
+Item 2: Avocado Toast x 1 - INR 350.00
+Subtotal: INR 830.00
+Taxes (GST 5%): INR 41.50
+Total Paid: ₹871.50 via UPI''';
+          } else if (id == 'shot_2' ||
+              rawTitle.contains('Palette') ||
+              rawTitle.contains('Design')) {
+            ocrMockText = '''Design System Palette:
+Primary Blue: #0B192C
+Emerald Accent: #10B981
+Purple AI Glow: #8B5CF6
+Surface Background: #F8FAFC
+Font Family: Outfit, -apple-system, Inter''';
+          } else if (id == 'shot_3' ||
+              rawTitle.contains('Flight') ||
+              rawTitle.contains('Ticket')) {
+            ocrMockText = '''BOARDING PASS / FLIGHT CONFIRMATION
+Passenger: Vignesh Hegde
+Flight: 6E-2042 (IndiGo)
+Route: DEL (Delhi) ➔ GOI (Goa)
+Departure: 08:45 AM | Gate: 4B | Seat: 12F
+PNR / Booking Reference: G7XP9Q
+Date: 15 Oct 2026''';
+          } else if (id == 'shot_4' ||
+              rawTitle.contains('Code') ||
+              rawTitle.contains('Python')) {
+            ocrMockText = '''Language: Python
+def calculate_semantic_similarity(embedding_a, embedding_b):
+    """Compute cosine similarity between two vector embeddings."""
+    dot_product = np.dot(embedding_a, embedding_b)
+    norm_a = np.linalg.norm(embedding_a)
+    norm_b = np.linalg.norm(embedding_b)
+    return dot_product / (norm_a * norm_b)''';
+          } else {
+            ocrMockText = '$rawTitle captured from device screen.';
+          }
+
+          final aiResult = await AiIntelligenceService.instance.analyzeContent(
+            text: ocrMockText,
+            title: rawTitle,
+            sourceApp: 'Photos',
+            type: MemoryType.screenshot,
+          );
 
           final item = MemoryItem(
-            id: 'shot_mem_${DateTime.now().millisecondsSinceEpoch}',
-            title: analysis['title'],
-            subtitle: 'Screenshot • ${analysis['category']}',
+            id: 'shot_mem_${DateTime.now().millisecondsSinceEpoch}_$id',
+            title: aiResult.suggestedTitle,
+            subtitle: 'Screenshot • ${aiResult.category}',
             sourceApp: 'Photos',
             type: MemoryType.screenshot,
             savedAt: DateTime.now(),
-            aiSummary: analysis['aiSummary'],
-            category: analysis['category'],
+            aiSummary: aiResult.aiSummary,
+            category: aiResult.category,
+            extractedText: ocrMockText,
+            structuredEntities: aiResult.structuredEntities,
+            tags: aiResult.tags,
             syncStatus: SyncStatus.pendingUpload,
-            iconBgColor: analysis['iconBgColor'],
-            iconData: analysis['iconData'],
+            iconBgColor: aiResult.iconBgColor,
+            iconData: aiResult.iconData,
           );
 
-          await LocalDatabaseService.instance.insertMemory(item);
+          final bool needsClarification =
+              aiResult.confidence < 0.90 ||
+              aiResult.category == 'Uncategorized';
+
+          if (needsClarification) {
+            _triageItems.add(item);
+          } else {
+            await LocalDatabaseService.instance.insertMemory(item);
+          }
         }
       } catch (e) {
         debugPrint("Error processing mock screenshot $id: $e");
@@ -538,6 +840,7 @@ class MemoryProvider extends ChangeNotifier {
     }
     _savePreferences();
     await reloadMemoriesFromDb();
+    notifyListeners();
     syncNow();
   }
 
@@ -563,14 +866,14 @@ class MemoryProvider extends ChangeNotifier {
     _processingSubtitle = "Extracting context and meaning.";
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(const Duration(milliseconds: 1200));
     if (_pendingFiles.isNotEmpty || _pendingQuickNote.isNotEmpty) {
       _processingTitle = "Finding what matters...";
       _processingSubtitle = "Connecting to your knowledge graph.";
       notifyListeners();
     }
 
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(const Duration(milliseconds: 1200));
     await _saveIncomingContent();
 
     _processingTitle = "Saved.";
@@ -587,6 +890,11 @@ class MemoryProvider extends ChangeNotifier {
       }
     } else if (_pendingQuickNote.isNotEmpty) {
       final note = _pendingQuickNote;
+      final aiResult = await AiIntelligenceService.instance.analyzeContent(
+        text: note,
+        type: MemoryType.note,
+      );
+
       final item = MemoryItem(
         id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
         title: _textTitle(note),
@@ -594,13 +902,16 @@ class MemoryProvider extends ChangeNotifier {
         sourceApp: 'Atlas',
         type: MemoryType.note,
         savedAt: DateTime.now(),
-        aiSummary: 'Quick note saved into ATLAS Memory Space.',
-        category: 'Shared',
+        aiSummary: aiResult.aiSummary,
+        category: aiResult.category,
         snippet: note,
         content: note,
+        extractedText: note,
+        structuredEntities: aiResult.structuredEntities,
+        tags: aiResult.tags,
         syncStatus: SyncStatus.pendingUpload,
-        iconBgColor: const Color(0xFFF5F3FF),
-        iconData: Icons.notes_rounded,
+        iconBgColor: aiResult.iconBgColor,
+        iconData: aiResult.iconData,
       );
       await LocalDatabaseService.instance.insertMemory(item);
     }
@@ -616,22 +927,47 @@ class MemoryProvider extends ChangeNotifier {
 
     if (file.type == SharedMediaType.url || file.type == SharedMediaType.text) {
       final url = _extractUrl(rawPath);
-      if (url != null) {
+      final isLink = url != null;
+
+      UrlMetadata? urlMeta;
+      if (isLink) {
+        urlMeta = await UrlMetadataService.instance.fetchMetadata(url);
+      }
+
+      final combinedForAi = isLink
+          ? '${urlMeta?.title ?? ''} ${urlMeta?.description ?? ''} $rawPath'
+          : rawPath;
+
+      final aiResult = await AiIntelligenceService.instance.analyzeContent(
+        text: combinedForAi,
+        url: url,
+        type: isLink ? MemoryType.link : MemoryType.note,
+      );
+
+      if (isLink) {
         return MemoryItem(
           id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
-          title: _linkTitle(url),
-          subtitle: url,
-          sourceApp: 'Shared Link',
+          title: urlMeta?.title.isNotEmpty == true
+              ? urlMeta!.title
+              : _linkTitle(url),
+          subtitle: urlMeta?.siteName ?? url,
+          sourceApp: urlMeta?.siteName ?? 'Shared Link',
           type: MemoryType.link,
           savedAt: savedAt,
-          aiSummary: 'Saved from another app. Tap to open the original page.',
-          category: 'Shared',
+          aiSummary: aiResult.aiSummary,
+          category: aiResult.category,
           url: url,
-          snippet: rawPath,
-          content: rawPath,
+          imagePath: urlMeta?.imageUrl,
+          snippet: urlMeta?.description.isNotEmpty == true
+              ? urlMeta!.description
+              : rawPath,
+          content: urlMeta?.articleBody ?? rawPath,
+          extractedText: rawPath,
+          structuredEntities: aiResult.structuredEntities,
+          tags: aiResult.tags,
           syncStatus: SyncStatus.pendingUpload,
-          iconBgColor: const Color(0xFFEFF6FF),
-          iconData: Icons.link_rounded,
+          iconBgColor: aiResult.iconBgColor,
+          iconData: aiResult.iconData,
         );
       }
       return MemoryItem(
@@ -641,35 +977,68 @@ class MemoryProvider extends ChangeNotifier {
         sourceApp: 'Shared Text',
         type: MemoryType.note,
         savedAt: savedAt,
-        aiSummary: 'Text snippet saved from another app.',
-        category: 'Shared',
+        aiSummary: aiResult.aiSummary,
+        category: aiResult.category,
         snippet: rawPath,
         content: rawPath,
+        extractedText: rawPath,
+        structuredEntities: aiResult.structuredEntities,
+        tags: aiResult.tags,
         syncStatus: SyncStatus.pendingUpload,
-        iconBgColor: const Color(0xFFF5F3FF),
-        iconData: Icons.notes_rounded,
+        iconBgColor: aiResult.iconBgColor,
+        iconData: aiResult.iconData,
       );
     }
 
-    if (file.type == SharedMediaType.image || file.type == SharedMediaType.video) {
+    if (file.type == SharedMediaType.image ||
+        file.type == SharedMediaType.video) {
       final savedPath = await _copySharedFileToStorage(file.path);
+      String extractedText = '';
+      if (savedPath != null && file.type == SharedMediaType.image) {
+        extractedText = await OcrService.instance.recognizeTextFromPath(
+          savedPath,
+        );
+      }
+
+      final aiResult = await AiIntelligenceService.instance.analyzeContent(
+        text: extractedText.isNotEmpty
+            ? extractedText
+            : (savedPath ?? 'Media File'),
+        type: MemoryType.screenshot,
+      );
+
+      final category = aiResult.category == 'Notes'
+          ? 'Screenshots'
+          : aiResult.category;
+      final iconData = aiResult.iconData == Icons.notes_rounded
+          ? Icons.image_rounded
+          : aiResult.iconData;
+
       return MemoryItem(
         id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
-        title: file.type == SharedMediaType.image ? 'Shared Image' : 'Shared Video',
-        subtitle: 'Media • Shared',
-        sourceApp: 'Shared Media',
+        title: file.type == SharedMediaType.image
+            ? aiResult.suggestedTitle
+            : 'Shared Video',
+        subtitle: 'Media • $category',
+        sourceApp: 'Photos',
         type: MemoryType.screenshot,
         savedAt: savedAt,
-        aiSummary: file.type == SharedMediaType.image
-            ? 'Image shared from another app and saved into ATLAS.'
-            : 'Video shared from another app and saved into ATLAS.',
-        category: 'Shared',
+        aiSummary: aiResult.aiSummary,
+        category: category,
         imagePath: savedPath,
+        extractedText: extractedText.isNotEmpty ? extractedText : null,
+        structuredEntities: aiResult.structuredEntities,
+        tags: aiResult.tags,
         syncStatus: SyncStatus.pendingUpload,
-        iconBgColor: const Color(0xFFECFDF5),
-        iconData: Icons.image_rounded,
+        iconBgColor: aiResult.iconBgColor,
+        iconData: iconData,
       );
     }
+
+    final aiResult = await AiIntelligenceService.instance.analyzeContent(
+      text: file.path,
+      type: MemoryType.pdf,
+    );
 
     return MemoryItem(
       id: 'shared_${DateTime.now().microsecondsSinceEpoch}',
@@ -678,17 +1047,21 @@ class MemoryProvider extends ChangeNotifier {
       sourceApp: 'Shared',
       type: MemoryType.pdf,
       savedAt: savedAt,
-      aiSummary: 'File shared from another app and saved into ATLAS.',
-      category: 'Shared',
+      aiSummary: aiResult.aiSummary,
+      category: aiResult.category,
       snippet: file.path,
+      structuredEntities: aiResult.structuredEntities,
+      tags: aiResult.tags,
       syncStatus: SyncStatus.pendingUpload,
-      iconBgColor: const Color(0xFFF3F4F6),
-      iconData: Icons.insert_drive_file_rounded,
+      iconBgColor: aiResult.iconBgColor,
+      iconData: aiResult.iconData,
     );
   }
 
   String? _extractUrl(String text) {
-    final match = RegExp(r'(https?://[^\s<>"()]+|www\.[^\s<>"()]+)').firstMatch(text);
+    final match = RegExp(
+      r'(https?://[^\s<>"()]+|www\.[^\s<>"()]+)',
+    ).firstMatch(text);
     if (match == null) return null;
     var url = match.group(0)!.replaceAll(RegExp(r'[),.;!?]+$'), '');
     if (url.startsWith('www.')) url = 'https://$url';
@@ -728,7 +1101,8 @@ class MemoryProvider extends ChangeNotifier {
       final dir = await getApplicationDocumentsDirectory();
       final savedDir = Directory('${dir.path}/shared_media');
       if (!savedDir.existsSync()) savedDir.createSync(recursive: true);
-      final fileName = 'shared_${DateTime.now().microsecondsSinceEpoch}_${src.uri.pathSegments.last}';
+      final fileName =
+          'shared_${DateTime.now().microsecondsSinceEpoch}_${src.uri.pathSegments.last}';
       final dest = File('${savedDir.path}/$fileName');
       await src.copy(dest.path);
       return dest.path;

@@ -835,7 +835,7 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
             ),
-            if (trailing != null) trailing,
+            ?trailing,
           ],
         ),
       ),

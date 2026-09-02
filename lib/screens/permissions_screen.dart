@@ -112,7 +112,7 @@ class PermissionsScreen extends StatelessWidget {
                           ),
                           Switch(
                             value: memoryProvider.hasPhotoPermission,
-                            activeColor: AtlasColors.emerald,
+                            activeThumbColor: AtlasColors.emerald,
                             onChanged: (val) {
                               memoryProvider.togglePhotoPermission(val);
                             },
@@ -143,7 +143,7 @@ class PermissionsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(28),
                     ),
                     elevation: 4,
-                    shadowColor: AtlasColors.blue.withOpacity(0.3),
+                    shadowColor: AtlasColors.blue.withValues(alpha: 0.3),
                   ),
                   child: const Text(
                     'Enter ATLAS',

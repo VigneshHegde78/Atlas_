@@ -181,7 +181,9 @@ class _UniverseScreenState extends State<UniverseScreen> {
                     selected: _selectedCategory == null,
                     selectedColor: const Color(0xFF0F172A),
                     labelStyle: TextStyle(
-                      color: _selectedCategory == null ? Colors.white : const Color(0xFF0F172A),
+                      color: _selectedCategory == null
+                          ? Colors.white
+                          : const Color(0xFF0F172A),
                       fontWeight: FontWeight.w700,
                     ),
                     onSelected: (_) {
@@ -198,7 +200,9 @@ class _UniverseScreenState extends State<UniverseScreen> {
                       selected: _selectedCategory == pin.category,
                       selectedColor: pin.color,
                       labelStyle: TextStyle(
-                        color: _selectedCategory == pin.category ? Colors.white : const Color(0xFF0F172A),
+                        color: _selectedCategory == pin.category
+                            ? Colors.white
+                            : const Color(0xFF0F172A),
                         fontWeight: FontWeight.w700,
                       ),
                       onSelected: (_) {
@@ -234,7 +238,9 @@ class _UniverseScreenState extends State<UniverseScreen> {
 
     final filteredMemories = _selectedCategory == null
         ? provider.memories
-        : provider.memories.where((m) => m.category == _selectedCategory).toList();
+        : provider.memories
+              .where((m) => m.category == _selectedCategory)
+              .toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -243,13 +249,18 @@ class _UniverseScreenState extends State<UniverseScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Top Clean Header
-            _buildTopHeader(pins: pins, totalMemories: provider.memories.length),
+            _buildTopHeader(
+              pins: pins,
+              totalMemories: provider.memories.length,
+            ),
             const SizedBox(height: 10),
 
             // Sub-header: Location Chip & Card Count Badge
             _buildContextBar(
               location: _getLocationText(filteredMemories),
-              currentIndex: filteredMemories.isEmpty ? 0 : (_currentCardIndex % filteredMemories.length),
+              currentIndex: filteredMemories.isEmpty
+                  ? 0
+                  : (_currentCardIndex % filteredMemories.length),
               totalCards: filteredMemories.length,
             ),
             const SizedBox(height: 12),
@@ -257,13 +268,21 @@ class _UniverseScreenState extends State<UniverseScreen> {
             // Active category indicator if filtered
             if (_selectedCategory != null)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 2,
+                ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: AtlasCategory.color(_selectedCategory!).withValues(alpha: 0.12),
+                        color: AtlasCategory.color(
+                          _selectedCategory!,
+                        ).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -338,7 +357,10 @@ class _UniverseScreenState extends State<UniverseScreen> {
                     bottom: 24,
                     child: Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.95),
                           borderRadius: BorderRadius.circular(24),
@@ -418,11 +440,7 @@ class _UniverseScreenState extends State<UniverseScreen> {
             ),
           ),
 
-          // Right Action Icons (Filter, Search)
-          _buildCircleActionButton(
-            icon: Icons.tune_rounded,
-            onTap: () => _showFilterModal(pins, totalMemories),
-          ),
+          // Right Action Icons (Search)
           const SizedBox(width: 8),
           _buildCircleActionButton(
             icon: Icons.search_rounded,
@@ -456,11 +474,7 @@ class _UniverseScreenState extends State<UniverseScreen> {
             shape: BoxShape.circle,
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: const Color(0xFF334155),
-          ),
+          child: Icon(icon, size: 20, color: const Color(0xFF334155)),
         ),
       ),
     );
@@ -532,7 +546,9 @@ class _UniverseScreenState extends State<UniverseScreen> {
               ],
             ),
             child: Text(
-              totalCards > 0 ? '${currentIndex + 1} / $totalCards Cards' : '0 / 0 Cards',
+              totalCards > 0
+                  ? '${currentIndex + 1} / $totalCards Cards'
+                  : '0 / 0 Cards',
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -563,7 +579,8 @@ class UniverseGlobe extends StatefulWidget {
   State<UniverseGlobe> createState() => _UniverseGlobeState();
 }
 
-class _UniverseGlobeState extends State<UniverseGlobe> with SingleTickerProviderStateMixin {
+class _UniverseGlobeState extends State<UniverseGlobe>
+    with SingleTickerProviderStateMixin {
   double _angleX = 0.35;
   double _angleY = 0.0;
   bool _interacting = false;
@@ -573,7 +590,10 @@ class _UniverseGlobeState extends State<UniverseGlobe> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
-    _spin = AnimationController(vsync: this, duration: const Duration(seconds: 10))..repeat();
+    _spin = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat();
     _spin.addListener(_idleRotate);
   }
 
@@ -623,7 +643,8 @@ class _UniverseGlobeState extends State<UniverseGlobe> with SingleTickerProvider
                   ),
                 ),
               ),
-              for (final pin in widget.pins) ..._buildPin(size, pin, centerOffset),
+              for (final pin in widget.pins)
+                ..._buildPin(size, pin, centerOffset),
             ],
           ),
         );
@@ -664,7 +685,10 @@ class _UniverseGlobeState extends State<UniverseGlobe> with SingleTickerProvider
                 decoration: BoxDecoration(
                   color: pin.color,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: selected ? 3.0 : 2.0),
+                  border: Border.all(
+                    color: Colors.white,
+                    width: selected ? 3.0 : 2.0,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: pin.color.withValues(alpha: selected ? 0.6 : 0.35),
@@ -683,7 +707,10 @@ class _UniverseGlobeState extends State<UniverseGlobe> with SingleTickerProvider
                 right: -4,
                 top: -4,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10),
@@ -759,11 +786,7 @@ class UniverseGlobePainter extends CustomPainter {
     final globeBody = Paint()
       ..shader = RadialGradient(
         center: const Alignment(-0.25, -0.35),
-        colors: const [
-          Color(0xFF2563EB),
-          Color(0xFF1D4ED8),
-          Color(0xFF0F172A),
-        ],
+        colors: const [Color(0xFF2563EB), Color(0xFF1D4ED8), Color(0xFF0F172A)],
         stops: const [0.0, 0.55, 1.0],
       ).createShader(Rect.fromCircle(center: center, radius: radius));
     canvas.drawCircle(center, radius, globeBody);
@@ -800,7 +823,13 @@ class UniverseGlobePainter extends CustomPainter {
     }
   }
 
-  void _drawPath(Canvas canvas, Size size, double? lat, double? lng, Paint paint) {
+  void _drawPath(
+    Canvas canvas,
+    Size size,
+    double? lat,
+    double? lng,
+    Paint paint,
+  ) {
     final path = Path();
     bool drawing = false;
 
@@ -955,7 +984,11 @@ class _MemoryCardDeckState extends State<MemoryCardDeck> {
                 if (total > 2)
                   Positioned.fill(
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 16, left: 16, right: 16),
+                      padding: const EdgeInsets.only(
+                        top: 16,
+                        left: 16,
+                        right: 16,
+                      ),
                       child: Container(
                         decoration: BoxDecoration(
                           color: const Color(0xFFE2E8F0),
@@ -1004,7 +1037,10 @@ class _MemoryCardDeckState extends State<MemoryCardDeck> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 9,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(10),
@@ -1096,7 +1132,8 @@ class _MemoryCardDeckState extends State<MemoryCardDeck> {
                                   onTap: () {
                                     Navigator.of(context).push(
                                       MaterialPageRoute(
-                                        builder: (context) => DetailScreen(memory: activeItem),
+                                        builder: (context) =>
+                                            DetailScreen(memory: activeItem),
                                       ),
                                     );
                                   },

@@ -2,18 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
-enum MemoryType {
-  link,
-  screenshot,
-  pdf,
-  note,
-}
+enum MemoryType { link, screenshot, pdf, note, audio }
 
-enum SyncStatus {
-  synced,
-  pendingUpload,
-  pendingDelete,
-}
+enum SyncStatus { synced, pendingUpload, pendingDelete }
 
 class MemoryItem {
   final String id;
@@ -30,6 +21,8 @@ class MemoryItem {
   final Uint8List? imageBytes;
   final String? snippet;
   final String content;
+  final String? extractedText;
+  final Map<String, dynamic>? structuredEntities;
   final List<String> tags;
   final bool isFavorite;
   final bool isArchived;
@@ -53,6 +46,8 @@ class MemoryItem {
     this.imageBytes,
     this.snippet,
     this.content = '',
+    this.extractedText,
+    this.structuredEntities,
     this.tags = const [],
     this.isFavorite = false,
     this.isArchived = false,
@@ -77,6 +72,8 @@ class MemoryItem {
     Uint8List? imageBytes,
     String? snippet,
     String? content,
+    String? extractedText,
+    Map<String, dynamic>? structuredEntities,
     List<String>? tags,
     bool? isFavorite,
     bool? isArchived,
@@ -100,6 +97,8 @@ class MemoryItem {
       imageBytes: imageBytes ?? this.imageBytes,
       snippet: snippet ?? this.snippet,
       content: content ?? this.content,
+      extractedText: extractedText ?? this.extractedText,
+      structuredEntities: structuredEntities ?? this.structuredEntities,
       tags: tags ?? this.tags,
       isFavorite: isFavorite ?? this.isFavorite,
       isArchived: isArchived ?? this.isArchived,
@@ -125,6 +124,10 @@ class MemoryItem {
       'imagePath': imagePath,
       'snippet': snippet,
       'content': content,
+      'extractedText': extractedText,
+      'structuredEntities': structuredEntities != null
+          ? jsonEncode(structuredEntities)
+          : null,
       'tags': jsonEncode(tags),
       'isFavorite': isFavorite ? 1 : 0,
       'isArchived': isArchived ? 1 : 0,
@@ -150,6 +153,8 @@ class MemoryItem {
       'imagePath': imagePath,
       'snippet': snippet,
       'content': content,
+      'extractedText': extractedText,
+      'structuredEntities': structuredEntities,
       'tags': tags,
       'isFavorite': isFavorite,
       'isArchived': isArchived,
@@ -169,6 +174,20 @@ class MemoryItem {
           final decoded = jsonDecode(map['tags'] as String);
           if (decoded is List) {
             parsedTags = decoded.map((e) => e.toString()).toList();
+          }
+        } catch (_) {}
+      }
+    }
+
+    Map<String, dynamic>? parsedEntities;
+    if (map['structuredEntities'] != null) {
+      if (map['structuredEntities'] is Map) {
+        parsedEntities = Map<String, dynamic>.from(map['structuredEntities']);
+      } else if (map['structuredEntities'] is String) {
+        try {
+          final decoded = jsonDecode(map['structuredEntities'] as String);
+          if (decoded is Map) {
+            parsedEntities = Map<String, dynamic>.from(decoded);
           }
         } catch (_) {}
       }
@@ -202,22 +221,29 @@ class MemoryItem {
       subtitle: map['subtitle']?.toString() ?? '',
       sourceApp: map['sourceApp']?.toString() ?? 'Atlas',
       type: type,
-      savedAt: DateTime.tryParse(map['savedAt']?.toString() ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(map['updatedAt']?.toString() ?? '') ?? DateTime.now(),
+      savedAt:
+          DateTime.tryParse(map['savedAt']?.toString() ?? '') ?? DateTime.now(),
+      updatedAt:
+          DateTime.tryParse(map['updatedAt']?.toString() ?? '') ??
+          DateTime.now(),
       aiSummary: map['aiSummary']?.toString() ?? '',
       category: map['category']?.toString() ?? 'Uncategorized',
       url: map['url']?.toString(),
       imagePath: map['imagePath']?.toString(),
       snippet: map['snippet']?.toString(),
       content: map['content']?.toString() ?? (map['snippet']?.toString() ?? ''),
+      extractedText: map['extractedText']?.toString(),
+      structuredEntities: parsedEntities,
       tags: parsedTags,
       isFavorite: isFav,
       isArchived: isArch,
       isDeleted: isDel,
       syncStatus: syncStatus,
-      iconBgColor: Color(map['iconBgColor'] is int
-          ? map['iconBgColor']
-          : int.tryParse(map['iconBgColor']?.toString() ?? '') ?? 0xFFEFF6FF),
+      iconBgColor: Color(
+        map['iconBgColor'] is int
+            ? map['iconBgColor']
+            : int.tryParse(map['iconBgColor']?.toString() ?? '') ?? 0xFFEFF6FF,
+      ),
       iconData: _resolveIcon(map['iconDataCode']),
     );
   }
@@ -225,20 +251,33 @@ class MemoryItem {
   static IconData _resolveIcon(dynamic codePoint) {
     final int code = codePoint is int
         ? codePoint
-        : int.tryParse(codePoint?.toString() ?? '') ?? Icons.image_rounded.codePoint;
+        : int.tryParse(codePoint?.toString() ?? '') ??
+              Icons.image_rounded.codePoint;
 
-    if (code == Icons.receipt_long_rounded.codePoint) return Icons.receipt_long_rounded;
-    if (code == Icons.restaurant_rounded.codePoint) return Icons.restaurant_rounded;
-    if (code == Icons.flight_takeoff_rounded.codePoint) return Icons.flight_takeoff_rounded;
+    if (code == Icons.receipt_long_rounded.codePoint) {
+      return Icons.receipt_long_rounded;
+    }
+    if (code == Icons.restaurant_rounded.codePoint) {
+      return Icons.restaurant_rounded;
+    }
+    if (code == Icons.flight_takeoff_rounded.codePoint) {
+      return Icons.flight_takeoff_rounded;
+    }
     if (code == Icons.palette_rounded.codePoint) return Icons.palette_rounded;
     if (code == Icons.code_rounded.codePoint) return Icons.code_rounded;
     if (code == Icons.link_rounded.codePoint) return Icons.link_rounded;
     if (code == Icons.notes_rounded.codePoint) return Icons.notes_rounded;
     if (code == Icons.share_rounded.codePoint) return Icons.share_rounded;
     if (code == Icons.image_rounded.codePoint) return Icons.image_rounded;
-    if (code == Icons.picture_as_pdf_rounded.codePoint) return Icons.picture_as_pdf_rounded;
-    if (code == Icons.insert_drive_file_rounded.codePoint) return Icons.insert_drive_file_rounded;
-    if (code == Icons.shopping_bag_rounded.codePoint) return Icons.shopping_bag_rounded;
+    if (code == Icons.picture_as_pdf_rounded.codePoint) {
+      return Icons.picture_as_pdf_rounded;
+    }
+    if (code == Icons.insert_drive_file_rounded.codePoint) {
+      return Icons.insert_drive_file_rounded;
+    }
+    if (code == Icons.shopping_bag_rounded.codePoint) {
+      return Icons.shopping_bag_rounded;
+    }
     return Icons.notes_rounded;
   }
 }

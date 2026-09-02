@@ -18,7 +18,8 @@ class LocalDatabaseService {
   }
 
   Future<Database> _initDatabase() async {
-    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+    if (!kIsWeb &&
+        (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
@@ -28,7 +29,7 @@ class LocalDatabaseService {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE memories (
@@ -45,6 +46,8 @@ class LocalDatabaseService {
             imagePath TEXT,
             snippet TEXT,
             content TEXT,
+            extractedText TEXT,
+            structuredEntities TEXT,
             tags TEXT,
             isFavorite INTEGER NOT NULL DEFAULT 0,
             isArchived INTEGER NOT NULL DEFAULT 0,
@@ -55,12 +58,38 @@ class LocalDatabaseService {
           )
         ''');
 
-        await db.execute('CREATE INDEX idx_memories_category ON memories(category)');
-        await db.execute('CREATE INDEX idx_memories_isDeleted ON memories(isDeleted)');
-        await db.execute('CREATE INDEX idx_memories_isFavorite ON memories(isFavorite)');
-        await db.execute('CREATE INDEX idx_memories_isArchived ON memories(isArchived)');
-        await db.execute('CREATE INDEX idx_memories_syncStatus ON memories(syncStatus)');
-        await db.execute('CREATE INDEX idx_memories_updatedAt ON memories(updatedAt DESC)');
+        await db.execute(
+          'CREATE INDEX idx_memories_category ON memories(category)',
+        );
+        await db.execute(
+          'CREATE INDEX idx_memories_isDeleted ON memories(isDeleted)',
+        );
+        await db.execute(
+          'CREATE INDEX idx_memories_isFavorite ON memories(isFavorite)',
+        );
+        await db.execute(
+          'CREATE INDEX idx_memories_isArchived ON memories(isArchived)',
+        );
+        await db.execute(
+          'CREATE INDEX idx_memories_syncStatus ON memories(syncStatus)',
+        );
+        await db.execute(
+          'CREATE INDEX idx_memories_updatedAt ON memories(updatedAt DESC)',
+        );
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          try {
+            await db.execute(
+              'ALTER TABLE memories ADD COLUMN extractedText TEXT',
+            );
+          } catch (_) {}
+          try {
+            await db.execute(
+              'ALTER TABLE memories ADD COLUMN structuredEntities TEXT',
+            );
+          } catch (_) {}
+        }
       },
     );
   }
@@ -118,11 +147,7 @@ class LocalDatabaseService {
 
   Future<void> permanentDeleteMemory(String id) async {
     final db = await database;
-    await db.delete(
-      'memories',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('memories', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> toggleFavorite(String id, bool isFavorite) async {
@@ -215,10 +240,7 @@ class LocalDatabaseService {
 
   Future<void> emptyTrash() async {
     final db = await database;
-    await db.delete(
-      'memories',
-      where: 'isDeleted = 1',
-    );
+    await db.delete('memories', where: 'isDeleted = 1');
   }
 
   Future<void> seedInitialDataIfEmpty(List<MemoryItem> defaultMemories) async {

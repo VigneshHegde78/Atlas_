@@ -39,12 +39,15 @@ Atlas/
 ├── lib/
 │   ├── main.dart                      # App entry, intent listener, theme config
 │   ├── models/
-│   │   └── memory_item.dart           # MemoryItem, MemoryType, SyncStatus, GlobeMemoryNode
+│   │   └── memory_item.dart           # MemoryItem (OCR text, structured entities), MemoryType, SyncStatus
 │   ├── services/
-│   │   ├── local_database_service.dart # SQLite DB helper: CRUD, soft-delete, indexing, trash
+│   │   ├── local_database_service.dart # SQLite DB helper (v2): CRUD, soft-delete, schema migrations
+│   │   ├── ocr_service.dart           # On-device OCR text recognition & cleaner
+│   │   ├── ai_intelligence_service.dart # AI Semantic Intelligence, 2-sentence summary & entity extraction
+│   │   ├── url_metadata_service.dart  # OpenGraph metadata scraper & Reader Mode body extractor
 │   │   └── firebase_sync_service.dart # Cloud Firestore sync engine & offline fallback
 │   ├── providers/
-│   │   └── memory_provider.dart       # Reactive state store, SQLite operations, triage & search
+│   │   └── memory_provider.dart       # Reactive state store, OCR/AI ingestion, triage & search
 │   ├── theme/
 │   │   └── app_theme.dart             # AtlasColors, AtlasTheme, custom shadows
 │   └── screens/
@@ -54,10 +57,11 @@ Atlas/
 │       ├── main_navigation_screen.dart# Custom bottom capsule navbar + Floating Action Button (+)
 │       ├── home_screen.dart           # Dashboard: Ask ATLAS, filters, triage, CRUD feed, drawer
 │       ├── universe_screen.dart       # Dual-view: 3D Globe Explorer & Constellation Star Sky
-│       ├── search_screen.dart         # Natural language search interface + OCR previews
-│       ├── detail_screen.dart         # Memory detail card: Edit, Archive, Favorite, Delete, Share
+│       ├── search_screen.dart         # Multi-field Semantic & OCR search interface
+│       ├── detail_screen.dart         # Memory detail card: AI Understanding, Entity Cards, OCR Text, Full Image Viewer
+│       ├── reader_mode_screen.dart    # Clean article Reader Mode (font scaler, themes, progress bar)
 │       ├── edit_memory_sheet.dart     # Modal sheet to update title, category, tags, and notes
-│       ├── needs_review_screen.dart   # Triage queue for uncategorized saves
+│       ├── needs_review_screen.dart   # Triage queue with AI confidence suggestions
 │       ├── screenshot_review_screen.dart # Device gallery screenshot selector & importer
 │       ├── add_memory_sheet.dart      # Bottom sheet modal for manual note/link creation
 │       ├── profile_screen.dart        # Account metrics, cloud sync status, trash bin, export
@@ -88,10 +92,10 @@ The app utilizes a floating pill navigation bar with 4 tabs and a center elevate
 | Tab Index | Screen | Icon | Purpose & Features |
 | :--- | :--- | :--- | :--- |
 | **0** | **Home** | `Icons.home_rounded` | Shows greeting, search bar, active filter pills (All, Favorites, Archived), triage banner, and recent memory feed with swipe/tap actions. |
-| **1** | **Globe** | `Icons.language_rounded` | **3D Globe Explorer**: Interactive rotatable 3D projected sphere with glowing cyan atmosphere rim, category memory pins, location pill, and a swipeable floating card deck. |
+| **1** | **Universe** | `Icons.language_rounded` | **3D Data World & Universe Explorer**: Interactive rotatable 3D projected sphere with glowing cyan atmosphere rim, category memory cluster nodes, dynamic speed controls, and a swipeable floating memory card deck. |
 | **Center FAB** | **Add Memory** | `Icons.add_rounded` | Opens `AddMemorySheet` modal to paste notes/links and assign categories. |
 | **2** | **Needs Review** | `Icons.move_to_inbox_rounded` | Triage screen for uncategorized or low-confidence incoming saves. Users tap category tags to classify them. |
-| **3** | **Screenshots** | `Icons.image_rounded` | Photo Library inspector that surfaces new screenshots and lets users bulk-import them with automated heuristic tagging. |
+| **3** | **Screenshots** | `Icons.image_rounded` | Photo Library inspector that surfaces un-saved screenshots ($N - \text{saved}$), enables multi-selection with an animated floating circular tick-badge button, and runs on-device OCR & AI Semantic Intelligence (naming, 2-sentence summary, smart tags, structured entities) upon saving. |
 
 ---
 
@@ -124,11 +128,11 @@ graph TD
 ---
 
 ## 5. Development Roadmap Summary
-- [x] **Unit 1: Robust Local Database & Full CRUD Engine** (Completed — SQLite, Full CRUD, Trash bin, Favorites, Archive, Sync State).
-- [ ] **Unit 2: On-Device OCR & AI Semantic Intelligence** (Next: Google ML Kit Text Recognition, Gemini API summarization).
-- [ ] **Unit 3: Rich Web URL Previews & Reader Mode** (OpenGraph metadata scraping, reader mode).
-- [ ] **Unit 4: Universal Semantic & Full-Text Search (FTS5)**.
-- [ ] **Unit 5: Geolocation & Interactive Globe Spatial Pinning**.
-- [ ] **Unit 6: PDF, Documents & Voice Memo Capture**.
-- [ ] **Unit 7: Collections, Smart Albums & Bulk Organization**.
+- [x] **Unit 1: Robust Local Database & Full CRUD Engine** (Completed — SQLite embedded engine, full CRUD lifecycle, Trash bin, Favorites, Archive, Sync State, adaptive app icons).
+- [x] **Unit 2: On-Device OCR & AI Semantic Intelligence** (Completed — On-device OCR extraction, AI semantic intelligence engine, structured domain entities, 2-sentence AI summaries, Clarify triage routing).
+- [x] **Unit 3: Rich Web URL Previews & Reader Mode** (Completed — OpenGraph metadata scraping, distraction-free in-app Reader Mode, full-screen zoomable screenshot viewer).
+- [x] **Unit 4: Universal Semantic & Full-Text Search (FTS5)** (Completed — Multi-field search, multi-dimensional type/date/category/favorite filters, voice search experience, recent search history, match highlighting).
+- [x] **Unit 5: 3D Data World & Interactive Spatial Universe Explorer** (Completed — Orthographic 3D Data World projected sphere, Constellation Star Sky mode, cluster node beacons, interactive focus, synced floating card deck).
+- [x] **Unit 6: PDF, Documents & Voice Memo Capture** (Completed — PDF/Document importer, voice memo recorder with live timer and soundwave visualizer, interactive audio player in DetailScreen).
+- [ ] **Unit 7: Collections, Smart Albums & Bulk Organization** (Next: Custom collections/spaces, rule-based albums, bulk management).
 - [ ] **Unit 8: Export, Encrypted Cloud Backup & Multi-Platform Sync**.

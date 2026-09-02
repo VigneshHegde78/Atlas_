@@ -83,7 +83,9 @@ class OnboardingScreen extends StatelessWidget {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: AtlasColors.blue.withOpacity(0.2),
+                                  color: AtlasColors.blue.withValues(
+                                    alpha: 0.2,
+                                  ),
                                   blurRadius: 24,
                                   spreadRadius: 4,
                                 ),
@@ -142,7 +144,7 @@ class OnboardingScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(28),
                     ),
                     elevation: 4,
-                    shadowColor: AtlasColors.blue.withOpacity(0.3),
+                    shadowColor: AtlasColors.blue.withValues(alpha: 0.3),
                   ),
                   child: const Text(
                     'Continue',

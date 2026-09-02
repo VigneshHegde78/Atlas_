@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/memory_provider.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'universe_screen.dart';
@@ -34,16 +32,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           height: 72,
           margin: const EdgeInsets.fromLTRB(18, 0, 18, 12),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.96),
+            color: Colors.white.withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
             ],
-            border: Border.all(color: Colors.grey.shade200.withOpacity(0.9)),
+            border: Border.all(
+              color: Colors.grey.shade200.withValues(alpha: 0.9),
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -90,7 +90,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ),
         decoration: BoxDecoration(
           color: isSelected
-              ? AtlasColors.blue.withOpacity(0.12)
+              ? AtlasColors.blue.withValues(alpha: 0.12)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(22),
         ),

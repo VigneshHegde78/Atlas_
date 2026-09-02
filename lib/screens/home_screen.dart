@@ -79,24 +79,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [AtlasTheme.softShadow],
-                          border: Border.all(color: Colors.grey.shade100),
-                        ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/icons/app_logo.png',
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -523,11 +505,45 @@ class _HomeScreenState extends State<HomeScreen> {
                                           item.imageBytes!,
                                           fit: BoxFit.cover,
                                         )
-                                      : (item.imagePath != null
-                                            ? Image.file(
-                                                File(item.imagePath!),
-                                                fit: BoxFit.cover,
-                                              )
+                                      : (item.imagePath != null &&
+                                                item.imagePath!.isNotEmpty
+                                            ? (item.imagePath!.startsWith(
+                                                    'http',
+                                                  )
+                                                  ? Image.network(
+                                                      item.imagePath!,
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder:
+                                                          (
+                                                            _,
+                                                            __,
+                                                            ___,
+                                                          ) => Center(
+                                                            child: Icon(
+                                                              item.iconData,
+                                                              color: AtlasColors
+                                                                  .blue,
+                                                              size: 24,
+                                                            ),
+                                                          ),
+                                                    )
+                                                  : Image.file(
+                                                      File(item.imagePath!),
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder:
+                                                          (
+                                                            _,
+                                                            __,
+                                                            ___,
+                                                          ) => Center(
+                                                            child: Icon(
+                                                              item.iconData,
+                                                              color: AtlasColors
+                                                                  .blue,
+                                                              size: 24,
+                                                            ),
+                                                          ),
+                                                    ))
                                             : Center(
                                                 child: Icon(
                                                   item.iconData,
