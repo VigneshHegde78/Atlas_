@@ -104,12 +104,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ),
             if (isSelected) ...[
               const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AtlasColors.blue,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AtlasColors.blue,
+                    ),
+                  ),
                 ),
               ),
             ],

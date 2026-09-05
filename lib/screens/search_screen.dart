@@ -270,8 +270,9 @@ class _SearchScreenState extends State<SearchScreen>
       // 1. Type Filter
       if (_selectedType != 'All') {
         if (_selectedType == 'Screenshots' &&
-            item.type != MemoryType.screenshot)
+            item.type != MemoryType.screenshot) {
           continue;
+        }
         if (_selectedType == 'Links' && item.type != MemoryType.link) continue;
         if (_selectedType == 'Notes' && item.type != MemoryType.note) continue;
         if (_selectedType == 'PDFs' && item.type != MemoryType.pdf) continue;
@@ -280,8 +281,9 @@ class _SearchScreenState extends State<SearchScreen>
 
       // 2. Category Filter
       if (_selectedCategory != 'All') {
-        if (item.category.toLowerCase() != _selectedCategory.toLowerCase())
+        if (item.category.toLowerCase() != _selectedCategory.toLowerCase()) {
           continue;
+        }
       }
 
       // 3. Favorites Only Filter

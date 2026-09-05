@@ -128,7 +128,9 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Row(
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
                     children: _palette.map((color) {
                       final isSel = selectedColor == color;
                       return GestureDetector(
@@ -136,7 +138,6 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                         child: Container(
                           width: 34,
                           height: 34,
-                          margin: const EdgeInsets.only(right: 10),
                           decoration: BoxDecoration(
                             color: color,
                             shape: BoxShape.circle,
@@ -179,6 +180,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 10,
+                    runSpacing: 10,
                     children: _iconList.map((icon) {
                       final isSel = selectedIcon == icon;
                       return GestureDetector(

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/memory_item.dart';
 import '../providers/memory_provider.dart';
+import '../services/auth_service.dart';
 import '../services/firebase_sync_service.dart';
 import '../theme/app_theme.dart';
 import 'detail_screen.dart';
@@ -11,6 +12,7 @@ import 'search_screen.dart';
 import 'needs_review_screen.dart';
 import 'profile_screen.dart';
 import 'add_memory_sheet.dart';
+import 'ask_atlas_screen.dart';
 import 'collections_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -259,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.only(bottom: 74.0),
               child: FloatingActionButton(
                 onPressed: _openAddMemory,
-                backgroundColor: const Color(0xFF0F172A),
+                backgroundColor: AtlasColors.blue,
                 foregroundColor: Colors.white,
                 elevation: 8,
                 shape: const CircleBorder(),
@@ -271,11 +273,11 @@ class _HomeScreenState extends State<HomeScreen> {
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
+                color: AtlasColors.blue,
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.25),
+                    color: AtlasColors.blue.withValues(alpha: 0.35),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
@@ -389,40 +391,44 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
                                   'Good day, Vignesh',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.grey.shade500,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                _buildSyncStatusBadge(memoryProvider),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            const Text(
-                              'Your Memory',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.4,
                               ),
+                              const SizedBox(width: 6),
+                              _buildSyncStatusBadge(memoryProvider),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Your Memory',
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.4,
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
                           icon: const Icon(
@@ -447,25 +453,45 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                           borderRadius: BorderRadius.circular(24),
-                          child: Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0F172A),
-                              shape: BoxShape.circle,
-                              boxShadow: [AtlasTheme.softShadow],
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'VH',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 14,
+                          child: AnimatedBuilder(
+                            animation: AuthService.instance,
+                            builder: (context, _) {
+                              final isAuth =
+                                  AuthService.instance.isAuthenticated;
+                              final name = AuthService.instance.userDisplayName;
+                              final initials = isAuth
+                                  ? (name.length >= 2
+                                        ? name.substring(0, 2).toUpperCase()
+                                        : (name.isNotEmpty
+                                              ? name
+                                                    .substring(0, 1)
+                                                    .toUpperCase()
+                                              : 'U'))
+                                  : '?';
+                              return Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: AtlasColors.blue,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [AtlasTheme.softShadow],
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
                                 ),
-                              ),
-                            ),
+                                child: Center(
+                                  child: Text(
+                                    initials,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ],
@@ -475,46 +501,72 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 24),
 
               // Search Trigger Bar
+              // Search & Ask ATLAS Trigger Bar
               if (!_isSelectionMode)
-                InkWell(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const SearchScreen(),
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(28),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [AtlasTheme.softShadow],
-                      border: Border.all(color: Colors.grey.shade100),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.auto_awesome_rounded,
-                          color: Color(0xFF2563EB),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 14),
-                        Text(
-                          'Ask ATLAS anything...',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey.shade400,
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [AtlasTheme.softShadow],
+                    border: Border.all(color: Colors.grey.shade100),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const AskAtlasScreen(),
+                              ),
+                            );
+                          },
+                          borderRadius: const BorderRadius.horizontal(
+                            left: Radius.circular(28),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.auto_awesome_rounded,
+                                  color: Color(0xFF9333EA),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 14),
+                                Text(
+                                  'Ask ATLAS anything...',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.search_rounded,
+                          color: Color(0xFF0F172A),
+                          size: 22,
+                        ),
+                        tooltip: 'Keyword & OCR Search',
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const SearchScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                    ],
                   ),
                 ),
               if (!_isSelectionMode) const SizedBox(height: 20),
@@ -592,14 +644,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: isSelected
                                   ? (isFavTab
                                         ? AtlasColors.rose
-                                        : const Color(0xFF0F172A))
+                                        : AtlasColors.blue)
                                   : Colors.white,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: isSelected
                                     ? (isFavTab
                                           ? AtlasColors.rose
-                                          : const Color(0xFF0F172A))
+                                          : AtlasColors.blue)
                                     : Colors.grey.shade200,
                               ),
                               boxShadow: isSelected

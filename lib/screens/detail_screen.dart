@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/memory_item.dart';
 import '../providers/memory_provider.dart';
+import '../services/audio_engine_service.dart';
+import '../services/url_service.dart';
 import '../theme/app_theme.dart';
 import 'edit_memory_sheet.dart';
 import 'reader_mode_screen.dart';
@@ -34,15 +36,22 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void dispose() {
     _audioTimer?.cancel();
+    AudioEngineService.instance.stopAudio();
     super.dispose();
   }
 
-  void _toggleAudioPlayback(int totalSec) {
+  void _toggleAudioPlayback(int totalSec) async {
     HapticFeedback.selectionClick();
     final effectiveTotalSec = totalSec > 0 ? totalSec : 15;
+    final audioPath =
+        _currentMemory.imagePath ??
+        _currentMemory.structuredEntities?['audioPath']?.toString();
 
     if (_isPlayingAudio) {
       _audioTimer?.cancel();
+      if (audioPath != null && audioPath.isNotEmpty) {
+        await AudioEngineService.instance.pauseAudio();
+      }
       setState(() {
         _isPlayingAudio = false;
       });
@@ -56,6 +65,10 @@ class _DetailScreenState extends State<DetailScreen> {
         }
       });
 
+      if (audioPath != null && audioPath.isNotEmpty) {
+        AudioEngineService.instance.playAudio(audioPath);
+      }
+
       _audioTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
         if (!mounted) {
           timer.cancel();
@@ -68,6 +81,7 @@ class _DetailScreenState extends State<DetailScreen> {
             _audioProgress = 0.0;
             _audioElapsedSec = 0;
             _isPlayingAudio = false;
+            AudioEngineService.instance.stopAudio();
             timer.cancel();
           }
         });
@@ -753,11 +767,88 @@ class _DetailScreenState extends State<DetailScreen> {
                       const SizedBox(height: 20),
                     ],
 
+                    // Direct Web Link Card if available
+                    if (hasUrl) ...[
+                      InkWell(
+                        onTap: () =>
+                            UrlService.launch(memory.url!, context: context),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [AtlasTheme.softShadow],
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AtlasColors.blue.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.language_rounded,
+                                  color: AtlasColors.blue,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'SOURCE URL',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.grey,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      memory.url!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AtlasColors.blue,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.open_in_new_rounded,
+                                size: 18,
+                                color: AtlasColors.blue,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
                     // Action Buttons Row
                     Row(
                       children: [
-                        if (hasUrl)
+                        if (hasUrl) ...[
                           Expanded(
+                            flex: 3,
                             child: SizedBox(
                               height: 56,
                               child: ElevatedButton(
@@ -784,11 +875,11 @@ class _DetailScreenState extends State<DetailScreen> {
                                       Icons.chrome_reader_mode_rounded,
                                       size: 18,
                                     ),
-                                    SizedBox(width: 8),
+                                    SizedBox(width: 6),
                                     Text(
                                       'Reader View',
                                       style: TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -796,8 +887,32 @@ class _DetailScreenState extends State<DetailScreen> {
                                 ),
                               ),
                             ),
-                          )
-                        else if (hasImage)
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            height: 56,
+                            width: 56,
+                            child: ElevatedButton(
+                              onPressed: () => UrlService.launch(
+                                memory.url!,
+                                context: context,
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                backgroundColor: Colors.grey.shade100,
+                                foregroundColor: AtlasColors.blue,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.open_in_browser_rounded,
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                        ] else if (hasImage)
                           Expanded(
                             child: SizedBox(
                               height: 56,
@@ -1043,9 +1158,11 @@ class _DetailScreenState extends State<DetailScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
               children: [
-                if (date.isNotEmpty) ...[
+                if (date.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -1065,8 +1182,6 @@ class _DetailScreenState extends State<DetailScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                ],
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -1799,18 +1914,23 @@ class _DetailScreenState extends State<DetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            _isPlayingAudio
-                                ? 'Playing Recording...'
-                                : 'Tap to Play',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: _isPlayingAudio
-                                  ? const Color(0xFF2563EB)
-                                  : Colors.grey.shade700,
+                          Expanded(
+                            child: Text(
+                              _isPlayingAudio
+                                  ? 'Playing Recording...'
+                                  : 'Tap to Play',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _isPlayingAudio
+                                    ? const Color(0xFF2563EB)
+                                    : Colors.grey.shade700,
+                              ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Text(
                             '${(_audioElapsedSec ~/ 60).toString().padLeft(2, '0')}:${(_audioElapsedSec % 60).toString().padLeft(2, '0')} / $durationFormatted',
                             style: TextStyle(

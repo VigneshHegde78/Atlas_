@@ -4,13 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/memory_provider.dart';
+import '../services/audio_engine_service.dart';
 import '../theme/app_theme.dart';
 
-enum AddMemoryTab {
-  note,
-  voice,
-  document,
-}
+enum AddMemoryTab { note, voice, document }
 
 class AddMemorySheet extends StatefulWidget {
   const AddMemorySheet({super.key});
@@ -19,13 +16,15 @@ class AddMemorySheet extends StatefulWidget {
   State<AddMemorySheet> createState() => _AddMemorySheetState();
 }
 
-class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProviderStateMixin {
+class _AddMemorySheetState extends State<AddMemorySheet>
+    with SingleTickerProviderStateMixin {
   static const List<String> _categories = [
     'Finance',
     'Recipes',
     'Travel',
     'Development',
     'Design Systems',
+    'Design',
     'Shopping',
     'Work',
     'Reference',
@@ -33,30 +32,33 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
   ];
 
   AddMemoryTab _currentTab = AddMemoryTab.note;
+  String _category = 'Uncategorized';
 
   // Note & Link Controllers
   final TextEditingController _contentController = TextEditingController();
   final TextEditingController _urlController = TextEditingController();
 
-  // Voice Memo State
-  bool _isRecording = false;
-  int _recordSeconds = 0;
-  Timer? _recordTimer;
-  final TextEditingController _voiceTranscriptController = TextEditingController();
+  // Voice Memo State — driven by AudioEngineService (no local copies)
+  final TextEditingController _voiceTranscriptController =
+      TextEditingController();
 
   // Document State
   final TextEditingController _docTitleController = TextEditingController();
   final TextEditingController _docContentController = TextEditingController();
-  String _selectedDocFileName = 'Document.pdf';
-  int _docPageCount = 1;
-
-  String _category = 'Uncategorized';
+  String _selectedDocFileName = 'Whitepaper_Architecture.pdf';
+  int _docPageCount = 4;
 
   late final AnimationController _pulseAnimController;
+
+  void _onAudioServiceChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
+    AudioEngineService.instance.initialize();
+    AudioEngineService.instance.addListener(_onAudioServiceChanged);
     _pulseAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -65,7 +67,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
 
   @override
   void dispose() {
-    _recordTimer?.cancel();
+    AudioEngineService.instance.removeListener(_onAudioServiceChanged);
     _pulseAnimController.dispose();
     _contentController.dispose();
     _urlController.dispose();
@@ -75,42 +77,39 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
     super.dispose();
   }
 
-  void _toggleRecording() {
+  Future<void> _toggleRecording() async {
     HapticFeedback.mediumImpact();
-    if (_isRecording) {
-      _recordTimer?.cancel();
-      setState(() {
-        _isRecording = false;
-        if (_voiceTranscriptController.text.trim().isEmpty) {
-          _voiceTranscriptController.text =
-              'Sprint planning and product release roadmap discussion. Core tasks scheduled for deployment by Thursday.';
-        }
-      });
+    final audioEngine = AudioEngineService.instance;
+
+    if (audioEngine.isRecording) {
+      final path = await audioEngine.stopRecording();
+      // Populate transcript if empty after recording
+      if (_voiceTranscriptController.text.trim().isEmpty ||
+          _voiceTranscriptController.text.startsWith('Recording')) {
+        _voiceTranscriptController.text = path != null
+            ? 'Voice memo recorded (${audioEngine.recordedSeconds}s). Edit or add notes here.'
+            : 'Voice memo recorded. Add your notes here.';
+      }
     } else {
-      setState(() {
-        _isRecording = true;
-        _recordSeconds = 0;
-        _voiceTranscriptController.text = 'Listening and transcribing audio note...';
-      });
-      _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (!mounted) {
-          timer.cancel();
-          return;
+      final started = await audioEngine.startRecording();
+      if (!started) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Microphone permission required. Enable it in Settings → Apps → Atlas → Permissions.',
+              ),
+              backgroundColor: const Color(0xFF0F172A),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          );
         }
-        setState(() {
-          _recordSeconds++;
-          if (_recordSeconds == 2) {
-            _voiceTranscriptController.text =
-                'Discussing system architecture and roadmap priorities...';
-          } else if (_recordSeconds == 4) {
-            _voiceTranscriptController.text =
-                'Discussing system architecture and roadmap priorities. Sprint tasks scheduled for completion by Thursday.';
-          } else if (_recordSeconds >= 7) {
-            _voiceTranscriptController.text =
-                'Discussing system architecture and roadmap priorities. Sprint tasks scheduled for completion by Thursday. Action items assigned to engineering team.';
-          }
-        });
-      });
+        return;
+      }
+      _voiceTranscriptController.text = 'Recording...';
     }
   }
 
@@ -121,7 +120,12 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
     });
   }
 
-  void _loadSampleDocument(String title, String fileName, int pages, String content) {
+  void _loadSampleDocument(
+    String title,
+    String fileName,
+    int pages,
+    String content,
+  ) {
     setState(() {
       _docTitleController.text = title;
       _selectedDocFileName = fileName;
@@ -132,21 +136,33 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
 
   void _save() {
     final provider = Provider.of<MemoryProvider>(context, listen: false);
+    final audioEngine = AudioEngineService.instance;
 
     if (_currentTab == AddMemoryTab.note) {
       final content = _contentController.text.trim();
       final url = _urlController.text.trim();
       if (content.isEmpty && url.isEmpty) return;
-      provider.addMemoryManually(content: content, url: url, category: _category);
+      provider.addMemoryManually(
+        content: content,
+        url: url,
+        category: _category,
+      );
     } else if (_currentTab == AddMemoryTab.voice) {
       var transcript = _voiceTranscriptController.text.trim();
-      if (transcript.isEmpty || transcript.startsWith('Listening')) {
+      if (transcript.isEmpty ||
+          transcript == 'Recording...' ||
+          transcript.startsWith('Listening')) {
         transcript =
-            'Audio voice memo recorded on ${DateTime.now().month}/${DateTime.now().day}. Discussion points and transcript indexed into ATLAS.';
+            'Voice memo recorded on ${DateTime.now().month}/${DateTime.now().day}.';
       }
       provider.addVoiceMemory(
         transcript: transcript,
-        duration: Duration(seconds: _recordSeconds > 0 ? _recordSeconds : 15),
+        duration: Duration(
+          seconds: audioEngine.recordedSeconds > 0
+              ? audioEngine.recordedSeconds
+              : 15,
+        ),
+        audioPath: audioEngine.currentRecordingPath,
         category: _category,
       );
     } else if (_currentTab == AddMemoryTab.document) {
@@ -155,7 +171,9 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
       if (title.isEmpty && content.isEmpty) return;
       provider.addDocumentMemory(
         title: title.isNotEmpty ? title : 'Document PDF',
-        content: content.isNotEmpty ? content : 'PDF document indexed into ATLAS memory vault.',
+        content: content.isNotEmpty
+            ? content
+            : 'PDF document indexed into ATLAS memory vault.',
         fileName: _selectedDocFileName,
         pageCount: _docPageCount,
         category: _category,
@@ -170,7 +188,9 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
     final maxHeight = MediaQuery.sizeOf(context).height * 0.88;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         constraints: BoxConstraints(maxHeight: maxHeight),
         decoration: const BoxDecoration(
@@ -203,7 +223,10 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: Icon(Icons.close_rounded, color: Colors.grey.shade500),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: Colors.grey.shade500,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -221,9 +244,21 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                 ),
                 child: Row(
                   children: [
-                    _buildTabButton(AddMemoryTab.note, 'Note & Link', Icons.edit_note_rounded),
-                    _buildTabButton(AddMemoryTab.voice, 'Voice Memo', Icons.mic_rounded),
-                    _buildTabButton(AddMemoryTab.document, 'PDF / Doc', Icons.picture_as_pdf_rounded),
+                    _buildTabButton(
+                      AddMemoryTab.note,
+                      'Note & Link',
+                      Icons.edit_note_rounded,
+                    ),
+                    _buildTabButton(
+                      AddMemoryTab.voice,
+                      'Voice Memo',
+                      Icons.mic_rounded,
+                    ),
+                    _buildTabButton(
+                      AddMemoryTab.document,
+                      'PDF / Doc',
+                      Icons.picture_as_pdf_rounded,
+                    ),
                   ],
                 ),
               ),
@@ -237,7 +272,8 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                   children: [
                     if (_currentTab == AddMemoryTab.note) _buildNoteSection(),
                     if (_currentTab == AddMemoryTab.voice) _buildVoiceSection(),
-                    if (_currentTab == AddMemoryTab.document) _buildDocumentSection(),
+                    if (_currentTab == AddMemoryTab.document)
+                      _buildDocumentSection(),
 
                     const SizedBox(height: 18),
                     Text(
@@ -253,9 +289,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: [
-                        for (final c in _categories) _categoryPill(c),
-                      ],
+                      children: [for (final c in _categories) _categoryPill(c)],
                     ),
                     const SizedBox(height: 22),
 
@@ -266,7 +300,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                       child: ElevatedButton(
                         onPressed: _save,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0F172A),
+                          backgroundColor: AtlasColors.blue,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(27),
@@ -321,7 +355,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                       color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
-                    )
+                    ),
                   ]
                 : [],
           ),
@@ -331,15 +365,23 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
               Icon(
                 icon,
                 size: 15,
-                color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade600,
+                color: isSelected ? AtlasColors.blue : Colors.grey.shade600,
               ),
               const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade600,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected
+                          ? AtlasColors.blue
+                          : Colors.grey.shade600,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -371,20 +413,23 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
   }
 
   Widget _buildVoiceSection() {
-    final mins = _recordSeconds ~/ 60;
-    final secs = _recordSeconds % 60;
-    final timeStr = '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+    final audioEngine = AudioEngineService.instance;
+    final isRecording = audioEngine.isRecording;
+    final secs = audioEngine.recordedSeconds;
+    final mins = secs ~/ 60;
+    final remainSecs = secs % 60;
+    final timeStr =
+        '${mins.toString().padLeft(2, '0')}:${remainSecs.toString().padLeft(2, '0')}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Voice Recorder Card
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            color: const Color(0xFF0F172A),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
             children: [
@@ -394,54 +439,71 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 8,
-                        height: 8,
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: 7,
+                        height: 7,
                         decoration: BoxDecoration(
-                          color: _isRecording ? Colors.redAccent : Colors.grey.shade400,
+                          color: isRecording
+                              ? Colors.redAccent
+                              : const Color(0xFF475569),
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _isRecording ? 'RECORDING LIVE' : 'VOICE RECORDER',
+                        isRecording ? 'RECORDING' : 'VOICE MEMO',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w800,
-                          color: _isRecording ? Colors.redAccent : const Color(0xFF0F172A),
-                          letterSpacing: 0.8,
+                          color: isRecording
+                              ? Colors.redAccent
+                              : const Color(0xFF64748B),
+                          letterSpacing: 1.0,
                         ),
                       ),
                     ],
                   ),
                   Text(
-                    _isRecording ? timeStr : (_recordSeconds > 0 ? timeStr : '00:15'),
-                    style: const TextStyle(
+                    isRecording ? timeStr : (secs > 0 ? timeStr : '00:00'),
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+                      fontFamily: 'monospace',
+                      color: isRecording
+                          ? Colors.white
+                          : const Color(0xFF64748B),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
 
-              // Solid Waveform Bars
+              // Waveform bars
               SizedBox(
-                height: 38,
+                height: 36,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(24, (index) {
-                    final waveHeight = _isRecording
-                        ? 8.0 + (math.sin(index * 0.6 + _pulseAnimController.value * math.pi * 2).abs() * 26)
-                        : 6.0 + (index % 5) * 4;
+                  children: List.generate(28, (index) {
+                    final waveHeight = isRecording
+                        ? 6.0 +
+                              (math
+                                      .sin(
+                                        index * 0.6 +
+                                            _pulseAnimController.value *
+                                                math.pi *
+                                                2,
+                                      )
+                                      .abs() *
+                                  26)
+                        : 4.0 + (index % 5) * 3.5;
                     return Container(
-                      width: 4,
+                      width: 3,
                       height: waveHeight,
-                      margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
                       decoration: BoxDecoration(
-                        color: _isRecording
-                            ? Colors.redAccent
+                        color: isRecording
+                            ? Colors.redAccent.withValues(alpha: 0.85)
                             : const Color(0xFF334155),
                         borderRadius: BorderRadius.circular(2),
                       ),
@@ -449,47 +511,40 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                   }),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
-              // Solid High-Contrast Mic Button
+              // Mic Button
               GestureDetector(
                 onTap: _toggleRecording,
                 child: Container(
-                  width: 64,
-                  height: 64,
+                  width: 60,
+                  height: 60,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _isRecording ? Colors.redAccent : const Color(0xFF0F172A),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (_isRecording ? Colors.redAccent : Colors.black)
-                            .withValues(alpha: 0.2),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    color: isRecording ? Colors.redAccent : Colors.white,
                   ),
                   child: Center(
                     child: Icon(
-                      _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
-                      color: Colors.white,
-                      size: 30,
+                      isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                      color: isRecording ? Colors.white : AtlasColors.blue,
+                      size: 26,
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                _isRecording ? 'Tap to finish recording' : 'Tap to record voice memo',
-                style: TextStyle(
-                  fontSize: 12,
+                isRecording ? 'Tap to stop' : 'Tap mic to record',
+                style: const TextStyle(
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
+                  color: Color(0xFF64748B),
                 ),
               ),
             ],
           ),
         ),
+
         const SizedBox(height: 14),
 
         // Quick Speech Suggestions
@@ -547,14 +602,18 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.mic_none_rounded, size: 13, color: Color(0xFF0F172A)),
+            const Icon(
+              Icons.mic_none_rounded,
+              size: 13,
+              color: AtlasColors.blue,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF0F172A),
+                color: AtlasColors.textPrimary,
               ),
             ),
           ],
@@ -620,7 +679,12 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
     );
   }
 
-  Widget _buildDocPresetChip(String title, String fileName, int pages, String content) {
+  Widget _buildDocPresetChip(
+    String title,
+    String fileName,
+    int pages,
+    String content,
+  ) {
     final isSelected = _selectedDocFileName == fileName;
     return InkWell(
       onTap: () => _loadSampleDocument(title, fileName, pages, content),
@@ -628,23 +692,29 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF0F172A).withValues(alpha: 0.08) : Colors.grey.shade100,
+          color: isSelected
+              ? AtlasColors.blue.withValues(alpha: 0.08)
+              : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade300,
+            color: isSelected ? AtlasColors.blue : Colors.grey.shade300,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.picture_as_pdf_rounded, size: 14, color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade600),
+            Icon(
+              Icons.picture_as_pdf_rounded,
+              size: 14,
+              color: isSelected ? AtlasColors.blue : Colors.grey.shade600,
+            ),
             const SizedBox(width: 6),
             Text(
               fileName,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade800,
+                color: isSelected ? AtlasColors.blue : Colors.grey.shade800,
               ),
             ),
           ],
@@ -680,7 +750,10 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Icon(icon, color: Colors.grey.shade500, size: 20),
           ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 44,
+            minHeight: 44,
+          ),
           hintText: hint,
           hintStyle: TextStyle(
             color: Colors.grey.shade400,

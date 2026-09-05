@@ -100,21 +100,36 @@ class MemoryCollection {
         : int.tryParse(codePoint?.toString() ?? '') ??
               Icons.folder_rounded.codePoint;
 
-    if (code == Icons.folder_rounded.codePoint) return Icons.folder_rounded;
-    if (code == Icons.flight_takeoff_rounded.codePoint)
+    if (code == Icons.folder_rounded.codePoint) {
+      return Icons.folder_rounded;
+    }
+    if (code == Icons.flight_takeoff_rounded.codePoint) {
       return Icons.flight_takeoff_rounded;
-    if (code == Icons.lightbulb_rounded.codePoint)
+    }
+    if (code == Icons.lightbulb_rounded.codePoint) {
       return Icons.lightbulb_rounded;
-    if (code == Icons.work_rounded.codePoint) return Icons.work_rounded;
-    if (code == Icons.home_work_rounded.codePoint)
+    }
+    if (code == Icons.work_rounded.codePoint) {
+      return Icons.work_rounded;
+    }
+    if (code == Icons.home_work_rounded.codePoint) {
       return Icons.home_work_rounded;
-    if (code == Icons.receipt_long_rounded.codePoint)
+    }
+    if (code == Icons.receipt_long_rounded.codePoint) {
       return Icons.receipt_long_rounded;
-    if (code == Icons.mic_rounded.codePoint) return Icons.mic_rounded;
-    if (code == Icons.restaurant_menu_rounded.codePoint)
+    }
+    if (code == Icons.mic_rounded.codePoint) {
+      return Icons.mic_rounded;
+    }
+    if (code == Icons.restaurant_menu_rounded.codePoint) {
       return Icons.restaurant_menu_rounded;
-    if (code == Icons.bookmark_rounded.codePoint) return Icons.bookmark_rounded;
-    if (code == Icons.code_rounded.codePoint) return Icons.code_rounded;
+    }
+    if (code == Icons.bookmark_rounded.codePoint) {
+      return Icons.bookmark_rounded;
+    }
+    if (code == Icons.code_rounded.codePoint) {
+      return Icons.code_rounded;
+    }
     return Icons.folder_rounded;
   }
 }

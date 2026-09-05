@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/memory_item.dart';
 import '../providers/memory_provider.dart';
 import '../services/url_metadata_service.dart';
+import '../services/url_service.dart';
 import '../theme/app_theme.dart';
 
 enum ReaderThemeMode { light, sepia, dark }
@@ -122,7 +123,8 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
 
     final String title = _metadata?.title ?? memory.title;
     final String siteName = _metadata?.siteName ?? memory.sourceApp;
-    final String content = _metadata?.articleBody ??
+    final String content =
+        _metadata?.articleBody ??
         (memory.content.isNotEmpty ? memory.content : memory.aiSummary);
     final int readingTime = _metadata?.readingTimeMinutes ?? 3;
     final String? bannerImage = _metadata?.imageUrl ?? memory.imagePath;
@@ -155,7 +157,10 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
               const PopupMenuItem(value: 15.0, child: Text('Small (15pt)')),
               const PopupMenuItem(value: 17.0, child: Text('Default (17pt)')),
               const PopupMenuItem(value: 19.0, child: Text('Large (19pt)')),
-              const PopupMenuItem(value: 22.0, child: Text('Extra Large (22pt)')),
+              const PopupMenuItem(
+                value: 22.0,
+                child: Text('Extra Large (22pt)'),
+              ),
             ],
           ),
 
@@ -168,7 +173,11 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
                 value: ReaderThemeMode.light,
                 child: Row(
                   children: [
-                    Icon(Icons.light_mode_rounded, size: 16, color: Colors.amber),
+                    Icon(
+                      Icons.light_mode_rounded,
+                      size: 16,
+                      color: Colors.amber,
+                    ),
                     SizedBox(width: 8),
                     Text('Light Theme'),
                   ],
@@ -178,7 +187,11 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
                 value: ReaderThemeMode.sepia,
                 child: Row(
                   children: [
-                    Icon(Icons.menu_book_rounded, size: 16, color: Color(0xFFD97706)),
+                    Icon(
+                      Icons.menu_book_rounded,
+                      size: 16,
+                      color: Color(0xFFD97706),
+                    ),
                     SizedBox(width: 8),
                     Text('Warm Sepia'),
                   ],
@@ -188,7 +201,11 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
                 value: ReaderThemeMode.dark,
                 child: Row(
                   children: [
-                    Icon(Icons.dark_mode_rounded, size: 16, color: Colors.indigoAccent),
+                    Icon(
+                      Icons.dark_mode_rounded,
+                      size: 16,
+                      color: Colors.indigoAccent,
+                    ),
                     SizedBox(width: 8),
                     Text('Dark Slate'),
                   ],
@@ -200,7 +217,9 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
           // Favorite button
           IconButton(
             icon: Icon(
-              memory.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              memory.isFavorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
               color: memory.isFavorite ? AtlasColors.rose : _textColor,
               size: 20,
             ),
@@ -245,7 +264,10 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AtlasColors.blue.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
@@ -333,14 +355,16 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
                               width: double.infinity,
                               height: 220,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
                             )
                           : Image.file(
                               File(bannerImage),
                               width: double.infinity,
                               height: 220,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
                             ),
                     ),
                     const SizedBox(height: 24),
@@ -365,7 +389,9 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
                     decoration: BoxDecoration(
                       color: _headerBgColor,
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+                      border: Border.all(
+                        color: Colors.grey.withValues(alpha: 0.15),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -374,7 +400,11 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
                             onPressed: () {
                               Clipboard.setData(ClipboardData(text: content));
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Article content copied to clipboard!')),
+                                const SnackBar(
+                                  content: Text(
+                                    'Article content copied to clipboard!',
+                                  ),
+                                ),
                               );
                             },
                             icon: const Icon(Icons.copy_rounded, size: 16),
@@ -394,11 +424,15 @@ class _ReaderModeScreenState extends State<ReaderModeScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Opening ${memory.url}...')),
+                                UrlService.launch(
+                                  memory.url!,
+                                  context: context,
                                 );
                               },
-                              icon: const Icon(Icons.open_in_browser_rounded, size: 16),
+                              icon: const Icon(
+                                Icons.open_in_browser_rounded,
+                                size: 16,
+                              ),
                               label: const Text('Open Web'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AtlasColors.blue,

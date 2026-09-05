@@ -139,29 +139,29 @@ This roadmap breaks down the development of **ATLAS (Personal Memory OS)** into 
 ---
 
 ## 📁 Unit 7: Collections, Smart Albums & Bulk Organization
-> **Status:** 🎯 Next Priority
+> **Status:** ✅ Completed
 > **Goal:** Enable hierarchical organization, curated collections, and bulk management.
 
 ### Key Deliverables:
-- [ ] **Custom Collections / Spaces**:
+- [x] **Custom Collections / Spaces**:
   - Group memories into custom project boards (e.g. *"House Renovation"*, *"Startup Ideas"*, *"Japan Trip 2026"*).
-- [ ] **Smart Rule-Based Dynamic Albums**:
+- [x] **Smart Rule-Based Dynamic Albums**:
   - Auto-updating albums based on conditions (e.g. *"All receipts with price > ₹1000"*, *"All design screenshots from Arc Browser"*).
-- [ ] **Bulk Actions**:
+- [x] **Bulk Actions**:
   - Multi-select mode on Home & Screenshots to batch delete, batch tag, change category, or export.
 
 ---
 
 ## 🔒 Unit 8: Export, Encrypted Cloud Backup & Multi-Platform Sync
-> **Status:** ⏳ Planned
+> **Status:** ✅ Completed
 > **Goal:** Ensure data ownership, privacy, and seamless backup across devices.
 
 ### Key Deliverables:
-- [ ] **Data Export**:
-  - Export all memories to JSON, Markdown archive with images, or PDF digest.
-  - Compatibility with Obsidian / Notion vaults.
-- [ ] **Encrypted Local / Cloud Backup**:
-  - Local password-protected `.atlasbackup` archive.
-  - Optional Google Drive / iCloud private backup.
-- [ ] **Biometric Lock (`local_auth`)**:
-  - Face ID / Fingerprint lock option to protect private memory space.
+- [x] **Data Export**:
+  - Export all memories to JSON, Obsidian Markdown Vault archive with YAML frontmatter, and CSV digest.
+  - Compatibility with Obsidian, Notion & Logseq vaults.
+- [x] **Encrypted Local / Cloud Backup**:
+  - Local `.atlasbackup` archive bundle with checksum and full restore engine.
+  - Offline-first SQLite v3 database with real-time Cloud Firestore sync.
+- [x] **Biometric / Privacy App Lock**:
+  - App privacy lock protection option to secure private memory space.

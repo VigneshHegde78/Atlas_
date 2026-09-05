@@ -29,13 +29,14 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
   }
 
   Future<void> _saveSelectedScreenshots(
-    BuildContext context,
     MemoryProvider memoryProvider,
     bool hasReal,
   ) async {
     if (_isSaving) return;
 
-    final count = hasReal ? _selectedRealEntities.length : _selectedMockIds.length;
+    final count = hasReal
+        ? _selectedRealEntities.length
+        : _selectedMockIds.length;
     if (count == 0) return;
 
     setState(() {
@@ -48,9 +49,7 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
           _selectedRealEntities.toList(),
         );
       } else {
-        memoryProvider.grantScreenshotAccess(
-          _selectedMockIds.toList(),
-        );
+        memoryProvider.grantScreenshotAccess(_selectedMockIds.toList());
       }
 
       if (mounted) {
@@ -63,10 +62,16 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
           SnackBar(
             backgroundColor: AtlasColors.blue,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             content: Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: AtlasColors.emerald, size: 20),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: AtlasColors.emerald,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -202,7 +207,9 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
                               width: 80,
                               height: 80,
                               decoration: BoxDecoration(
-                                color: AtlasColors.emerald.withValues(alpha: 0.12),
+                                color: AtlasColors.emerald.withValues(
+                                  alpha: 0.12,
+                                ),
                                 shape: BoxShape.circle,
                               ),
                               child: const Center(
@@ -258,8 +265,8 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
                             itemCount: realScreenshots.length,
                             itemBuilder: (context, index) {
                               final AssetEntity entity = realScreenshots[index];
-                              final bool isSelected =
-                                  _selectedRealEntities.contains(entity);
+                              final bool isSelected = _selectedRealEntities
+                                  .contains(entity);
 
                               return InkWell(
                                 onTap: _isSaving
@@ -267,28 +274,30 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
                                     : () {
                                         setState(() {
                                           if (isSelected) {
-                                            _selectedRealEntities.remove(entity);
+                                            _selectedRealEntities.remove(
+                                              entity,
+                                            );
                                           } else {
                                             _selectedRealEntities.add(entity);
                                           }
                                         });
                                       },
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(14),
                                 child: Stack(
                                   children: [
                                     Container(
                                       decoration: BoxDecoration(
                                         color: Colors.grey.shade200,
-                                        borderRadius: BorderRadius.circular(24),
+                                        borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
                                           color: isSelected
                                               ? AtlasColors.emerald
                                               : Colors.grey.shade200,
-                                          width: isSelected ? 3 : 1,
+                                          width: isSelected ? 2.5 : 1,
                                         ),
                                       ),
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(22),
+                                        borderRadius: BorderRadius.circular(13),
                                         child: FutureBuilder<Uint8List?>(
                                           future: entity.thumbnailDataWithSize(
                                             const ThumbnailSize(300, 300),
@@ -317,13 +326,14 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
                                     ),
 
                                     Positioned(
-                                      top: 12,
-                                      right: 12,
+                                      top: 10,
+                                      right: 10,
                                       child: AnimatedContainer(
-                                        duration:
-                                            const Duration(milliseconds: 200),
-                                        width: 28,
-                                        height: 28,
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
+                                        width: 26,
+                                        height: 26,
                                         decoration: BoxDecoration(
                                           color: isSelected
                                               ? AtlasColors.emerald
@@ -341,7 +351,7 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
                                                 child: Icon(
                                                   Icons.check_rounded,
                                                   color: Colors.white,
-                                                  size: 16,
+                                                  size: 14,
                                                 ),
                                               )
                                             : null,
@@ -370,8 +380,9 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
                             itemBuilder: (context, index) {
                               final shot = mockScreenshots[index];
                               final String id = shot['id'];
-                              final bool isSelected =
-                                  _selectedMockIds.contains(id);
+                              final bool isSelected = _selectedMockIds.contains(
+                                id,
+                              );
 
                               return InkWell(
                                 onTap: _isSaving
@@ -385,71 +396,99 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
                                           }
                                         });
                                       },
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(14),
                                 child: Stack(
                                   children: [
                                     Container(
                                       decoration: BoxDecoration(
                                         color: Color(
                                           shot['color'],
-                                        ).withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(24),
+                                        ).withValues(alpha: 0.10),
+                                        borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
                                           color: isSelected
                                               ? AtlasColors.emerald
-                                              : Colors.grey.shade200,
-                                          width: isSelected ? 3 : 1,
+                                              : const Color(0xFFE2E8F0),
+                                          width: isSelected ? 2.5 : 1,
                                         ),
                                       ),
-                                      child: Center(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.image_rounded,
-                                              size: 40,
-                                              color: Color(shot['color']),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Top icon area
+                                          Expanded(
+                                            child: Center(
+                                              child: Icon(
+                                                Icons
+                                                    .screenshot_monitor_rounded,
+                                                size: 34,
+                                                color: Color(
+                                                  shot['color'],
+                                                ).withValues(alpha: 0.6),
+                                              ),
                                             ),
-                                            const SizedBox(height: 10),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 12.0,
+                                          ),
+                                          // Bottom label strip
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.85,
+                                              ),
+                                              borderRadius:
+                                                  const BorderRadius.only(
+                                                    bottomLeft: Radius.circular(
+                                                      13,
+                                                    ),
+                                                    bottomRight:
+                                                        Radius.circular(13),
                                                   ),
-                                              child: Text(
-                                                shot['title'],
-                                                textAlign: TextAlign.center,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: AtlasColors.textPrimary,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  shot['title'],
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                    color:
+                                                        AtlasColors.textPrimary,
+                                                  ),
                                                 ),
-                                              ),
+                                                Text(
+                                                  shot['date'],
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Colors.grey.shade500,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              shot['date'],
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w500,
-                                                color: Colors.grey.shade500,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
                                     ),
 
                                     Positioned(
-                                      top: 12,
-                                      right: 12,
+                                      top: 10,
+                                      right: 10,
                                       child: AnimatedContainer(
-                                        duration:
-                                            const Duration(milliseconds: 200),
-                                        width: 28,
-                                        height: 28,
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
+                                        width: 26,
+                                        height: 26,
                                         decoration: BoxDecoration(
                                           color: isSelected
                                               ? AtlasColors.emerald
@@ -467,7 +506,7 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
                                                 child: Icon(
                                                   Icons.check_rounded,
                                                   color: Colors.white,
-                                                  size: 16,
+                                                  size: 14,
                                                 ),
                                               )
                                             : null,
@@ -494,31 +533,23 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
               child: GestureDetector(
                 onTap: _isSaving
                     ? null
-                    : () => _saveSelectedScreenshots(
-                        context,
-                        memoryProvider,
-                        hasReal,
-                      ),
+                    : () => _saveSelectedScreenshots(memoryProvider, hasReal),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      width: 64,
-                      height: 64,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AtlasColors.blue, AtlasColors.blueLight],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        color: AtlasColors.blue,
                         shape: BoxShape.circle,
                         boxShadow: [AtlasTheme.floatShadow],
                       ),
                       child: Center(
                         child: _isSaving
                             ? const SizedBox(
-                                width: 24,
-                                height: 24,
+                                width: 22,
+                                height: 22,
                                 child: CircularProgressIndicator(
                                   color: Colors.white,
                                   strokeWidth: 2.5,
@@ -527,7 +558,7 @@ class _ScreenshotReviewScreenState extends State<ScreenshotReviewScreen> {
                             : const Icon(
                                 Icons.check_rounded,
                                 color: Colors.white,
-                                size: 32,
+                                size: 28,
                               ),
                       ),
                     ),

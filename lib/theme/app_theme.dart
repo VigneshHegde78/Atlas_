@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AtlasColors {
-  static const Color blue = Color(0xFF0B192C); // Deep Blue Primary
-  static const Color blueLight = Color(
-    0xFF1A365D,
-  ); // Lighter blue for active states
-  static const Color surface = Color(0xFFFDFCFB); // Warm white background
-  static const Color surfaceDark = Color(0xFF121212); // Dark mode background
+  static const Color blue = Color(
+    0xFF2563EB,
+  ); // Vibrant Royal Blue matching logo & globe
+  static const Color blueLight = Color(0xFF3B82F6); // Lighter electric blue
+  static const Color navy = Color(0xFF0F172A); // Slate navy for text & contrast
+  static const Color surface = Color(0xFFF8FAFC); // Clean slate background
+  static const Color surfaceDark = Color(0xFF0F172A); // Dark mode background
   static const Color card = Color(0xFFFFFFFF);
-  static const Color cardDark = Color(0xFF1E1E1E);
+  static const Color cardDark = Color(0xFF1E293B);
   static const Color purple = Color(0xFF9333EA); // AI Accent
   static const Color emerald = Color(0xFF10B981); // Success accent
   static const Color emeraldLight = Color(0xFFD1FAE5);
@@ -18,9 +19,9 @@ class AtlasColors {
   static const Color amberDark = Color(0xFFB45309);
   static const Color rose = Color(0xFFEF4444); // Error
   static const Color roseLight = Color(0xFFFEE2E2);
-  static const Color textPrimary = Color(0xFF111827);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color border = Color(0xFFF3F4F6);
+  static const Color textPrimary = Color(0xFF0F172A);
+  static const Color textSecondary = Color(0xFF64748B);
+  static const Color border = Color(0xFFE2E8F0);
 }
 
 class AtlasTheme {
@@ -38,15 +39,15 @@ class AtlasTheme {
       fontFamily: GoogleFonts.outfit().fontFamily,
       textTheme: GoogleFonts.outfitTextTheme().apply(
         bodyColor: AtlasColors.textPrimary,
-        displayColor: AtlasColors.blue,
+        displayColor: AtlasColors.textPrimary,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        iconTheme: const IconThemeData(color: AtlasColors.blue),
+        iconTheme: const IconThemeData(color: AtlasColors.textPrimary),
         titleTextStyle: GoogleFonts.outfit(
-          color: AtlasColors.blue,
+          color: AtlasColors.textPrimary,
           fontSize: 22,
           fontWeight: FontWeight.w800,
         ),

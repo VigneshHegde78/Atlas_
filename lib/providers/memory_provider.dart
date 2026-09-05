@@ -451,6 +451,7 @@ class MemoryProvider extends ChangeNotifier {
     required String transcript,
     required Duration duration,
     String? title,
+    String? audioPath,
     String category = 'Uncategorized',
     List<String> tags = const [],
   }) async {
@@ -492,12 +493,14 @@ class MemoryProvider extends ChangeNotifier {
       savedAt: DateTime.now(),
       aiSummary: resolvedAiSummary,
       category: resolvedCategory,
+      imagePath: audioPath,
       snippet: cleanTranscript,
       content: cleanTranscript,
       extractedText: cleanTranscript,
       structuredEntities: {
         'audioDurationSeconds': durationSec,
         'audioDurationFormatted': durationStr,
+        if (audioPath != null) ...{'audioPath': audioPath},
         ...?aiResult.structuredEntities,
       },
       tags: resolvedTags,

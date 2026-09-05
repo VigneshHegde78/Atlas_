@@ -44,6 +44,9 @@ dependencies:
   firebase_core: ^3.6.0
   cloud_firestore: ^5.4.4
   firebase_auth: ^5.3.1
+  record: ^7.1.1
+  audioplayers: ^6.8.1
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +75,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icons/
+    - assets/splash.png
 
 
   # An image asset can refer to one or more resolution-specific "variants", see
