@@ -15,6 +15,7 @@ class AtlasColors {
   static const Color emeraldLight = Color(0xFFD1FAE5);
   static const Color amber = Color(0xFFF59E0B); // Warning
   static const Color amberLight = Color(0xFFFEF3C7);
+  static const Color amberDark = Color(0xFFB45309);
   static const Color rose = Color(0xFFEF4444); // Error
   static const Color roseLight = Color(0xFFFEE2E2);
   static const Color textPrimary = Color(0xFF111827);

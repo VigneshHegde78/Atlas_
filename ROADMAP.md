@@ -105,8 +105,8 @@ This roadmap breaks down the development of **ATLAS (Personal Memory OS)** into 
 ---
 
 ## 🌐 Unit 5: 3D Data World & Interactive Spatial Universe Explorer
-> **Status:** ✅ Completed
-> **Goal:** Elevate the 3D Data World Globe and Constellation Star Sky into an immersive, aesthetic spatial navigation experience for all personal memories (cluster nodes, interactive orbital navigation, and synced card decks) with zero external map dependencies.
+> **Status:** ✅ Completed (UI Locked & Preserved)
+> **Goal:** 3D Data World Globe spatial navigation experience for all personal memories with synced floating card deck and category pins. (UI locked to original clean design).
 
 ### Key Deliverables:
 - [x] **3D Data World Sphere**:

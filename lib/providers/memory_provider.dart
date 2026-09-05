@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/collection_item.dart';
 import '../models/memory_item.dart';
 import '../services/ai_intelligence_service.dart';
 import '../services/firebase_sync_service.dart';
@@ -32,6 +33,7 @@ class MemoryProvider extends ChangeNotifier {
   List<MemoryItem> _archivedMemories = [];
   List<MemoryItem> _trashMemories = [];
   List<MemoryItem> _triageItems = [];
+  List<MemoryCollection> _collections = [];
 
   CloudSyncState _syncState = CloudSyncState.offline;
   StreamSubscription? _syncStateSub;
@@ -190,6 +192,7 @@ class MemoryProvider extends ChangeNotifier {
   List<MemoryItem> get archivedMemories => _archivedMemories;
   List<MemoryItem> get trashMemories => _trashMemories;
   List<MemoryItem> get triageItems => _triageItems;
+  List<MemoryCollection> get collections => _collections;
   List<Map<String, dynamic>> get availableScreenshots => _availableScreenshots
       .where((s) => !_permittedScreenshotIds.contains(s['id']))
       .toList();
@@ -205,9 +208,63 @@ class MemoryProvider extends ChangeNotifier {
   CloudSyncState get syncState => _syncState;
   DateTime? get lastSyncedAt => FirebaseSyncService.instance.lastSyncedAt;
 
+  final List<MemoryCollection> _defaultSeedCollections = [
+    MemoryCollection(
+      id: 'col_japan_2026',
+      title: 'Japan Trip 2026',
+      description:
+          'Flight tickets, JR pass, hotel bookings, and travel itinerary.',
+      color: const Color(0xFF2563EB),
+      icon: Icons.flight_takeoff_rounded,
+      itemIds: ['seed_3'],
+      createdAt: DateTime.now().subtract(const Duration(days: 3)),
+    ),
+    MemoryCollection(
+      id: 'col_startup',
+      title: 'Startup & Tech Architecture',
+      description: 'System whitepapers, UI design systems, and code notes.',
+      color: const Color(0xFF0F172A),
+      icon: Icons.lightbulb_rounded,
+      itemIds: ['seed_1'],
+      createdAt: DateTime.now().subtract(const Duration(days: 5)),
+    ),
+    MemoryCollection(
+      id: 'smart_voice',
+      title: 'Voice Notes & Audio',
+      description: 'Dynamic smart album containing all voice recordings.',
+      color: const Color(0xFF475569),
+      icon: Icons.mic_rounded,
+      isSmart: true,
+      smartRule: 'type:audio',
+      createdAt: DateTime.now().subtract(const Duration(days: 1)),
+    ),
+    MemoryCollection(
+      id: 'smart_receipts',
+      title: 'Finance & Bills',
+      description:
+          'Auto-aggregates payment receipts, cafe bills, and invoices.',
+      color: const Color(0xFF10B981),
+      icon: Icons.receipt_long_rounded,
+      isSmart: true,
+      smartRule: 'category:Finance',
+      createdAt: DateTime.now().subtract(const Duration(days: 2)),
+    ),
+    MemoryCollection(
+      id: 'smart_recipes',
+      title: 'Culinary Recipes',
+      description: 'Smart album gathering ingredient checklists and recipes.',
+      color: const Color(0xFFF59E0B),
+      icon: Icons.restaurant_menu_rounded,
+      isSmart: true,
+      smartRule: 'category:Recipes',
+      createdAt: DateTime.now().subtract(const Duration(days: 4)),
+    ),
+  ];
+
   Future<void> _initDatabaseAndServices() async {
     final db = LocalDatabaseService.instance;
     await db.seedInitialDataIfEmpty(_defaultSeedMemories);
+    await db.seedDefaultCollectionsIfEmpty(_defaultSeedCollections);
     await reloadMemoriesFromDb();
 
     // Init triage items
@@ -266,6 +323,7 @@ class MemoryProvider extends ChangeNotifier {
     _favoriteMemories = await db.getFavoriteMemories();
     _archivedMemories = await db.getArchivedMemories();
     _trashMemories = await db.getTrashMemories();
+    _collections = await db.getAllCollections();
     notifyListeners();
   }
 
@@ -417,14 +475,22 @@ class MemoryProvider extends ChangeNotifier {
         ? title.trim()
         : aiResult.suggestedTitle;
 
+    final resolvedSubtitle = cleanTranscript.isNotEmpty
+        ? 'Voice Note ($durationStr) • ${cleanTranscript.length > 50 ? "${cleanTranscript.substring(0, 47)}..." : cleanTranscript}'
+        : 'Voice Note ($durationStr) • Just Now';
+
+    final resolvedAiSummary = aiResult.aiSummary.isNotEmpty
+        ? aiResult.aiSummary
+        : cleanTranscript;
+
     final item = MemoryItem(
       id: 'voice_${DateTime.now().microsecondsSinceEpoch}',
       title: resolvedTitle,
-      subtitle: 'Voice Note ($durationStr) • Just Now',
+      subtitle: resolvedSubtitle,
       sourceApp: 'Voice Recorder',
       type: MemoryType.audio,
       savedAt: DateTime.now(),
-      aiSummary: aiResult.aiSummary,
+      aiSummary: resolvedAiSummary,
       category: resolvedCategory,
       snippet: cleanTranscript,
       content: cleanTranscript,
@@ -556,6 +622,151 @@ class MemoryProvider extends ChangeNotifier {
     await LocalDatabaseService.instance.emptyTrash();
     await reloadMemoriesFromDb();
     syncNow();
+  }
+
+  // --- Collections Engine ---
+
+  Future<void> createCollection({
+    required String title,
+    required String description,
+    Color color = const Color(0xFF0F172A),
+    IconData icon = Icons.folder_rounded,
+  }) async {
+    final collection = MemoryCollection(
+      id: 'col_${DateTime.now().millisecondsSinceEpoch}',
+      title: title.trim(),
+      description: description.trim(),
+      color: color,
+      icon: icon,
+      itemIds: [],
+      createdAt: DateTime.now(),
+    );
+    await LocalDatabaseService.instance.insertCollection(collection);
+    _collections = await LocalDatabaseService.instance.getAllCollections();
+    notifyListeners();
+  }
+
+  Future<void> deleteCollection(String collectionId) async {
+    await LocalDatabaseService.instance.deleteCollection(collectionId);
+    _collections = await LocalDatabaseService.instance.getAllCollections();
+    notifyListeners();
+  }
+
+  Future<void> addMemoryToCollection(
+    String memoryId,
+    String collectionId,
+  ) async {
+    final index = _collections.indexWhere((c) => c.id == collectionId);
+    if (index != -1) {
+      final col = _collections[index];
+      if (!col.itemIds.contains(memoryId)) {
+        final updatedList = List<String>.from(col.itemIds)..add(memoryId);
+        final updatedCol = col.copyWith(itemIds: updatedList);
+        await LocalDatabaseService.instance.updateCollection(updatedCol);
+        _collections = await LocalDatabaseService.instance.getAllCollections();
+        notifyListeners();
+      }
+    }
+  }
+
+  Future<void> removeMemoryFromCollection(
+    String memoryId,
+    String collectionId,
+  ) async {
+    final index = _collections.indexWhere((c) => c.id == collectionId);
+    if (index != -1) {
+      final col = _collections[index];
+      if (col.itemIds.contains(memoryId)) {
+        final updatedList = List<String>.from(col.itemIds)..remove(memoryId);
+        final updatedCol = col.copyWith(itemIds: updatedList);
+        await LocalDatabaseService.instance.updateCollection(updatedCol);
+        _collections = await LocalDatabaseService.instance.getAllCollections();
+        notifyListeners();
+      }
+    }
+  }
+
+  List<MemoryItem> getMemoriesForCollection(MemoryCollection collection) {
+    if (collection.isSmart && collection.smartRule != null) {
+      final rule = collection.smartRule!;
+      if (rule.startsWith('type:')) {
+        final typeStr = rule.replaceFirst('type:', '');
+        return _memories.where((m) => m.type.name == typeStr).toList();
+      } else if (rule.startsWith('category:')) {
+        final cat = rule.replaceFirst('category:', '');
+        return _memories.where((m) => m.category == cat).toList();
+      } else if (rule == 'isFavorite:true') {
+        return _favoriteMemories;
+      }
+    }
+    return _memories.where((m) => collection.itemIds.contains(m.id)).toList();
+  }
+
+  // --- Bulk Operations Engine ---
+
+  Future<void> bulkSoftDelete(List<String> memoryIds) async {
+    final db = LocalDatabaseService.instance;
+    for (final id in memoryIds) {
+      await db.softDeleteMemory(id);
+    }
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> bulkToggleFavorite(
+    List<String> memoryIds,
+    bool isFavorite,
+  ) async {
+    final db = LocalDatabaseService.instance;
+    for (final id in memoryIds) {
+      await db.toggleFavorite(id, isFavorite);
+    }
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> bulkToggleArchive(
+    List<String> memoryIds,
+    bool isArchived,
+  ) async {
+    final db = LocalDatabaseService.instance;
+    for (final id in memoryIds) {
+      await db.toggleArchive(id, isArchived);
+    }
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> bulkAssignCategory(
+    List<String> memoryIds,
+    String category,
+  ) async {
+    final db = LocalDatabaseService.instance;
+    for (final id in memoryIds) {
+      final memoryIndex = _memories.indexWhere((m) => m.id == id);
+      if (memoryIndex != -1) {
+        final updated = _memories[memoryIndex].copyWith(category: category);
+        await db.updateMemory(updated);
+      }
+    }
+    await reloadMemoriesFromDb();
+    syncNow();
+  }
+
+  Future<void> bulkAddToCollection(
+    List<String> memoryIds,
+    String collectionId,
+  ) async {
+    final index = _collections.indexWhere((c) => c.id == collectionId);
+    if (index != -1) {
+      final col = _collections[index];
+      final currentSet = Set<String>.from(col.itemIds);
+      currentSet.addAll(memoryIds);
+      final updatedCol = col.copyWith(itemIds: currentSet.toList());
+      await LocalDatabaseService.instance.updateCollection(updatedCol);
+      _collections = await LocalDatabaseService.instance.getAllCollections();
+      notifyListeners();
+    }
   }
 
   // --- Triage Management ---
@@ -753,7 +964,8 @@ class MemoryProvider extends ChangeNotifier {
             orElse: () => {'title': 'Screenshot Memory', 'label': 'Reference'},
           );
 
-          final String rawTitle = shot['title'];
+          final String rawTitle =
+              shot['title']?.toString() ?? 'Screenshot Memory';
           String ocrMockText = '';
 
           if (id == 'shot_1' ||

@@ -59,7 +59,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
     super.initState();
     _pulseAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
   }
 
@@ -81,31 +81,44 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
       _recordTimer?.cancel();
       setState(() {
         _isRecording = false;
-        if (_voiceTranscriptController.text.isEmpty) {
+        if (_voiceTranscriptController.text.trim().isEmpty) {
           _voiceTranscriptController.text =
-              'Discussion regarding the new product release and sprint planning. Key milestones have been scheduled for next Tuesday.';
+              'Sprint planning and product release roadmap discussion. Core tasks scheduled for deployment by Thursday.';
         }
       });
     } else {
       setState(() {
         _isRecording = true;
         _recordSeconds = 0;
+        _voiceTranscriptController.text = 'Listening and transcribing audio note...';
       });
       _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
         setState(() {
           _recordSeconds++;
           if (_recordSeconds == 2) {
-            _voiceTranscriptController.text = 'Discussion regarding the new product release...';
-          } else if (_recordSeconds == 5) {
             _voiceTranscriptController.text =
-                'Discussion regarding the new product release and sprint planning.';
-          } else if (_recordSeconds == 8) {
+                'Discussing system architecture and roadmap priorities...';
+          } else if (_recordSeconds == 4) {
             _voiceTranscriptController.text =
-                'Discussion regarding the new product release and sprint planning. Key milestones have been scheduled for next Tuesday.';
+                'Discussing system architecture and roadmap priorities. Sprint tasks scheduled for completion by Thursday.';
+          } else if (_recordSeconds >= 7) {
+            _voiceTranscriptController.text =
+                'Discussing system architecture and roadmap priorities. Sprint tasks scheduled for completion by Thursday. Action items assigned to engineering team.';
           }
         });
       });
     }
+  }
+
+  void _selectVoicePrompt(String prompt) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _voiceTranscriptController.text = prompt;
+    });
   }
 
   void _loadSampleDocument(String title, String fileName, int pages, String content) {
@@ -126,11 +139,14 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
       if (content.isEmpty && url.isEmpty) return;
       provider.addMemoryManually(content: content, url: url, category: _category);
     } else if (_currentTab == AddMemoryTab.voice) {
-      final transcript = _voiceTranscriptController.text.trim();
-      if (transcript.isEmpty) return;
+      var transcript = _voiceTranscriptController.text.trim();
+      if (transcript.isEmpty || transcript.startsWith('Listening')) {
+        transcript =
+            'Audio voice memo recorded on ${DateTime.now().month}/${DateTime.now().day}. Discussion points and transcript indexed into ATLAS.';
+      }
       provider.addVoiceMemory(
         transcript: transcript,
-        duration: Duration(seconds: _recordSeconds > 0 ? _recordSeconds : 14),
+        duration: Duration(seconds: _recordSeconds > 0 ? _recordSeconds : 15),
         category: _category,
       );
     } else if (_currentTab == AddMemoryTab.document) {
@@ -139,7 +155,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
       if (title.isEmpty && content.isEmpty) return;
       provider.addDocumentMemory(
         title: title.isNotEmpty ? title : 'Document PDF',
-        content: content,
+        content: content.isNotEmpty ? content : 'PDF document indexed into ATLAS memory vault.',
         fileName: _selectedDocFileName,
         pageCount: _docPageCount,
         category: _category,
@@ -250,12 +266,12 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                       child: ElevatedButton(
                         onPressed: _save,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AtlasColors.blue,
+                          backgroundColor: const Color(0xFF0F172A),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(27),
                           ),
-                          elevation: 3,
+                          elevation: 2,
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -315,7 +331,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
               Icon(
                 icon,
                 size: 15,
-                color: isSelected ? AtlasColors.blue : Colors.grey.shade600,
+                color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade600,
               ),
               const SizedBox(width: 4),
               Text(
@@ -323,7 +339,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: isSelected ? AtlasColors.blue : Colors.grey.shade600,
+                  color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade600,
                 ),
               ),
             ],
@@ -360,14 +376,15 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
     final timeStr = '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Voice Recorder Card
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AtlasColors.purple.withValues(alpha: 0.06),
+            color: const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AtlasColors.purple.withValues(alpha: 0.2)),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: Column(
             children: [
@@ -381,35 +398,35 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: _isRecording ? Colors.redAccent : Colors.grey,
+                          color: _isRecording ? Colors.redAccent : Colors.grey.shade400,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _isRecording ? 'RECORDING LIVE' : 'VOICE MEMO',
+                        _isRecording ? 'RECORDING LIVE' : 'VOICE RECORDER',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color: _isRecording ? Colors.redAccent : AtlasColors.purple,
+                          color: _isRecording ? Colors.redAccent : const Color(0xFF0F172A),
                           letterSpacing: 0.8,
                         ),
                       ),
                     ],
                   ),
                   Text(
-                    _isRecording ? timeStr : (_recordSeconds > 0 ? timeStr : '00:14'),
+                    _isRecording ? timeStr : (_recordSeconds > 0 ? timeStr : '00:15'),
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: AtlasColors.blue,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 18),
 
-              // Animated Soundwave Visualizer Bars
+              // Solid Waveform Bars
               SizedBox(
                 height: 38,
                 child: Row(
@@ -424,17 +441,17 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                       margin: const EdgeInsets.symmetric(horizontal: 2.5),
                       decoration: BoxDecoration(
                         color: _isRecording
-                            ? AtlasColors.purple
-                            : AtlasColors.purple.withValues(alpha: 0.4),
+                            ? Colors.redAccent
+                            : const Color(0xFF334155),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     );
                   }),
-              ),
+                ),
               ),
               const SizedBox(height: 20),
 
-              // Big Pulsing Mic Button
+              // Solid High-Contrast Mic Button
               GestureDetector(
                 onTap: _toggleRecording,
                 child: Container(
@@ -442,17 +459,13 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                   height: 64,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: _isRecording
-                          ? [Colors.redAccent, Colors.deepOrangeAccent]
-                          : [AtlasColors.purple, Colors.blueAccent],
-                    ),
+                    color: _isRecording ? Colors.redAccent : const Color(0xFF0F172A),
                     boxShadow: [
                       BoxShadow(
-                        color: (_isRecording ? Colors.redAccent : AtlasColors.purple)
-                            .withValues(alpha: 0.35),
-                        blurRadius: 18,
-                        spreadRadius: 2,
+                        color: (_isRecording ? Colors.redAccent : Colors.black)
+                            .withValues(alpha: 0.2),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -460,14 +473,14 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
                     child: Icon(
                       _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
                       color: Colors.white,
-                      size: 32,
+                      size: 30,
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                _isRecording ? 'Tap to finish recording' : 'Tap to record voice',
+                _isRecording ? 'Tap to finish recording' : 'Tap to record voice memo',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -476,6 +489,36 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 14),
+
+        // Quick Speech Suggestions
+        const Text(
+          'Quick Voice Templates',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildVoicePresetChip(
+              'Sprint Roadmap & Action Items',
+              'Sprint planning roadmap review. Core deliverables scheduled for production deploy by Thursday.',
+            ),
+            _buildVoicePresetChip(
+              'Product Architecture Decision',
+              'Architecture review: utilizing SQLite embedded persistence with on-device OCR indexing for zero latency.',
+            ),
+            _buildVoicePresetChip(
+              'Personal Reminder & Schedule',
+              'Meeting with travel coordinator next Monday at 10:00 AM regarding flight bookings.',
+            ),
+          ],
         ),
         const SizedBox(height: 14),
 
@@ -490,6 +533,36 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
     );
   }
 
+  Widget _buildVoicePresetChip(String label, String fullTranscript) {
+    return InkWell(
+      onTap: () => _selectVoicePrompt(fullTranscript),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.mic_none_rounded, size: 13, color: Color(0xFF0F172A)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDocumentSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -500,7 +573,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w800,
-            color: AtlasColors.blue,
+            color: Color(0xFF0F172A),
           ),
         ),
         const SizedBox(height: 8),
@@ -555,23 +628,23 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.redAccent.withValues(alpha: 0.1) : Colors.grey.shade100,
+          color: isSelected ? const Color(0xFF0F172A).withValues(alpha: 0.08) : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? Colors.redAccent : Colors.grey.shade300,
+            color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade300,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.picture_as_pdf_rounded, size: 14, color: isSelected ? Colors.redAccent : Colors.grey.shade600),
+            Icon(Icons.picture_as_pdf_rounded, size: 14, color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade600),
             const SizedBox(width: 6),
             Text(
               fileName,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.redAccent : Colors.grey.shade800,
+                color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade800,
               ),
             ),
           ],
@@ -634,7 +707,7 @@ class _AddMemorySheetState extends State<AddMemorySheet> with SingleTickerProvid
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected ? AtlasColors.blue : Colors.grey.shade100,
+          color: isSelected ? const Color(0xFF0F172A) : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(

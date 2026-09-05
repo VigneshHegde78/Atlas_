@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/memory_item.dart';
 import '../providers/memory_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -13,13 +12,21 @@ class NeedsReviewScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Custom Category', style: TextStyle(fontWeight: FontWeight.w800, color: AtlasColors.blue)),
+        title: const Text(
+          'Custom Category',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: AtlasColors.blue,
+          ),
+        ),
         content: TextField(
           controller: textController,
           autofocus: true,
           decoration: const InputDecoration(
             hintText: 'e.g. Health, Music, Fitness',
-            border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
           ),
         ),
         actions: [
@@ -31,20 +38,29 @@ class NeedsReviewScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AtlasColors.blue,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               final val = textController.text.trim();
               if (val.isNotEmpty) {
                 Navigator.of(dialogCtx).pop();
-                final provider = Provider.of<MemoryProvider>(context, listen: false);
+                final provider = Provider.of<MemoryProvider>(
+                  context,
+                  listen: false,
+                );
                 provider.resolveTriageItem(itemId, val);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     backgroundColor: AtlasColors.blue,
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    content: Text('Categorized as "$val" and moved to Memory Space!'),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    content: Text(
+                      'Categorized as "$val" and moved to Memory Space!',
+                    ),
                   ),
                 );
               }
@@ -140,8 +156,6 @@ class NeedsReviewScreen extends StatelessWidget {
                             const SizedBox(height: 16),
                         itemBuilder: (context, index) {
                           final item = memoryProvider.triageItems[index];
-                          final hasImage = (item.imageBytes != null) ||
-                              (item.imagePath != null && item.imagePath!.isNotEmpty);
 
                           return Container(
                             padding: const EdgeInsets.all(20),
@@ -170,17 +184,28 @@ class NeedsReviewScreen extends StatelessWidget {
                                                 item.imageBytes!,
                                                 fit: BoxFit.cover,
                                               )
-                                            : (item.imagePath != null && item.imagePath!.isNotEmpty
-                                                ? (item.imagePath!.startsWith('http')
-                                                    ? Image.network(item.imagePath!, fit: BoxFit.cover)
-                                                    : Image.file(File(item.imagePath!), fit: BoxFit.cover))
-                                                : Center(
-                                                    child: Icon(
-                                                      item.iconData,
-                                                      color: AtlasColors.blue,
-                                                      size: 24,
-                                                    ),
-                                                  )),
+                                            : (item.imagePath != null &&
+                                                      item.imagePath!.isNotEmpty
+                                                  ? (item.imagePath!.startsWith(
+                                                          'http',
+                                                        )
+                                                        ? Image.network(
+                                                            item.imagePath!,
+                                                            fit: BoxFit.cover,
+                                                          )
+                                                        : Image.file(
+                                                            File(
+                                                              item.imagePath!,
+                                                            ),
+                                                            fit: BoxFit.cover,
+                                                          ))
+                                                  : Center(
+                                                      child: Icon(
+                                                        item.iconData,
+                                                        color: AtlasColors.blue,
+                                                        size: 24,
+                                                      ),
+                                                    )),
                                       ),
                                     ),
                                     const SizedBox(width: 14),
@@ -226,7 +251,8 @@ class NeedsReviewScreen extends StatelessWidget {
                                       borderRadius: BorderRadius.circular(14),
                                     ),
                                     child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Icon(
                                           Icons.auto_awesome_rounded,
@@ -311,19 +337,34 @@ class NeedsReviewScreen extends StatelessWidget {
                                       const Color(0xFF334155),
                                     ),
                                     InkWell(
-                                      onTap: () => _showCustomCategoryDialog(context, item.id),
+                                      onTap: () => _showCustomCategoryDialog(
+                                        context,
+                                        item.id,
+                                      ),
                                       borderRadius: BorderRadius.circular(16),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: Colors.grey.shade50,
-                                          borderRadius: BorderRadius.circular(16),
-                                          border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                                            style: BorderStyle.solid,
+                                          ),
                                         ),
                                         child: const Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.add_rounded, size: 14, color: AtlasColors.blue),
+                                            Icon(
+                                              Icons.add_rounded,
+                                              size: 14,
+                                              color: AtlasColors.blue,
+                                            ),
                                             SizedBox(width: 4),
                                             Text(
                                               'Custom...',
@@ -367,7 +408,9 @@ class NeedsReviewScreen extends StatelessWidget {
           SnackBar(
             backgroundColor: AtlasColors.blue,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             content: Text('Categorized as "$label" and moved to Memory Space!'),
           ),
         );

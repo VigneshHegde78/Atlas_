@@ -6,12 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../models/memory_item.dart';
 import 'local_database_service.dart';
 
-enum CloudSyncState {
-  synced,
-  syncing,
-  offline,
-  error,
-}
+enum CloudSyncState { synced, syncing, pending, offline, error }
 
 class FirebaseSyncService {
   static final FirebaseSyncService instance = FirebaseSyncService._internal();
@@ -42,7 +37,9 @@ class FirebaseSyncService {
       _setSyncState(CloudSyncState.synced);
       _ensureAuth();
     } catch (e) {
-      debugPrint("Firebase initialization notice: App running in offline-first mode ($e)");
+      debugPrint(
+        "Firebase initialization notice: App running in offline-first mode ($e)",
+      );
       _isInitialized = false;
       _setSyncState(CloudSyncState.offline);
     }
@@ -86,7 +83,10 @@ class FirebaseSyncService {
 
       final db = LocalDatabaseService.instance;
       final firestore = FirebaseFirestore.instance;
-      final userMemoriesRef = firestore.collection('users').doc(uid).collection('memories');
+      final userMemoriesRef = firestore
+          .collection('users')
+          .doc(uid)
+          .collection('memories');
 
       // 1. Push pending local mutations to Firestore
       final pendingItems = await db.getPendingSyncItems();
@@ -95,10 +95,9 @@ class FirebaseSyncService {
           await userMemoriesRef.doc(item.id).delete();
           await db.permanentDeleteMemory(item.id);
         } else {
-          await userMemoriesRef.doc(item.id).set(
-                item.toFirestoreMap(),
-                SetOptions(merge: true),
-              );
+          await userMemoriesRef
+              .doc(item.id)
+              .set(item.toFirestoreMap(), SetOptions(merge: true));
           await db.markSynced(item.id);
         }
       }
@@ -108,7 +107,9 @@ class FirebaseSyncService {
       for (final doc in snapshot.docs) {
         final data = doc.data();
         final remoteItem = MemoryItem.fromMap(data);
-        await db.insertMemory(remoteItem.copyWith(syncStatus: SyncStatus.synced));
+        await db.insertMemory(
+          remoteItem.copyWith(syncStatus: SyncStatus.synced),
+        );
       }
 
       _lastSyncedAt = DateTime.now();
@@ -137,26 +138,28 @@ class FirebaseSyncService {
         .collection('memories')
         .snapshots()
         .listen(
-      (snapshot) async {
-        final db = LocalDatabaseService.instance;
-        for (final change in snapshot.docChanges) {
-          final data = change.doc.data();
-          if (data == null) continue;
+          (snapshot) async {
+            final db = LocalDatabaseService.instance;
+            for (final change in snapshot.docChanges) {
+              final data = change.doc.data();
+              if (data == null) continue;
 
-          if (change.type == DocumentChangeType.removed) {
-            await db.permanentDeleteMemory(change.doc.id);
-          } else {
-            final memory = MemoryItem.fromMap(data);
-            await db.insertMemory(memory.copyWith(syncStatus: SyncStatus.synced));
-          }
-        }
-        final freshMemories = await db.getActiveMemories();
-        onLocalDataChanged(freshMemories);
-      },
-      onError: (e) {
-        debugPrint("Firestore realtime listener error: $e");
-      },
-    );
+              if (change.type == DocumentChangeType.removed) {
+                await db.permanentDeleteMemory(change.doc.id);
+              } else {
+                final memory = MemoryItem.fromMap(data);
+                await db.insertMemory(
+                  memory.copyWith(syncStatus: SyncStatus.synced),
+                );
+              }
+            }
+            final freshMemories = await db.getActiveMemories();
+            onLocalDataChanged(freshMemories);
+          },
+          onError: (e) {
+            debugPrint("Firestore realtime listener error: $e");
+          },
+        );
   }
 
   void dispose() {

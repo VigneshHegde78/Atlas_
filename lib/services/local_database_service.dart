@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import '../models/collection_item.dart';
 import '../models/memory_item.dart';
 
 class LocalDatabaseService {
@@ -29,7 +30,7 @@ class LocalDatabaseService {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE memories (
@@ -55,6 +56,20 @@ class LocalDatabaseService {
             syncStatus TEXT NOT NULL DEFAULT 'synced',
             iconBgColor INTEGER NOT NULL,
             iconDataCode INTEGER NOT NULL
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE collections (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            colorCode INTEGER NOT NULL,
+            iconCode INTEGER NOT NULL,
+            itemIds TEXT,
+            createdAt TEXT NOT NULL,
+            isSmart INTEGER NOT NULL DEFAULT 0,
+            smartRule TEXT
           )
         ''');
 
@@ -88,6 +103,23 @@ class LocalDatabaseService {
             await db.execute(
               'ALTER TABLE memories ADD COLUMN structuredEntities TEXT',
             );
+          } catch (_) {}
+        }
+        if (oldVersion < 3) {
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS collections (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT,
+                colorCode INTEGER NOT NULL,
+                iconCode INTEGER NOT NULL,
+                itemIds TEXT,
+                createdAt TEXT NOT NULL,
+                isSmart INTEGER NOT NULL DEFAULT 0,
+                smartRule TEXT
+              )
+            ''');
           } catch (_) {}
         }
       },
@@ -124,7 +156,7 @@ class LocalDatabaseService {
       {
         'isDeleted': 1,
         'updatedAt': DateTime.now().toIso8601String(),
-        'syncStatus': SyncStatus.pendingDelete.name,
+        'syncStatus': SyncStatus.pendingUpload.name,
       },
       where: 'id = ?',
       whereArgs: [id],
@@ -145,9 +177,13 @@ class LocalDatabaseService {
     );
   }
 
-  Future<void> permanentDeleteMemory(String id) async {
+  Future<void> hardDeleteMemory(String id) async {
     final db = await database;
     await db.delete('memories', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> permanentDeleteMemory(String id) async {
+    await hardDeleteMemory(id);
   }
 
   Future<void> toggleFavorite(String id, bool isFavorite) async {
@@ -255,6 +291,62 @@ class LocalDatabaseService {
         batch.insert(
           'memories',
           memory.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+      await batch.commit(noResult: true);
+    }
+  }
+
+  // --- Collections Engine ---
+
+  Future<void> insertCollection(MemoryCollection collection) async {
+    final db = await database;
+    await db.insert(
+      'collections',
+      collection.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<MemoryCollection>> getAllCollections() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'collections',
+      orderBy: 'createdAt DESC',
+    );
+    return maps.map((m) => MemoryCollection.fromMap(m)).toList();
+  }
+
+  Future<void> updateCollection(MemoryCollection collection) async {
+    final db = await database;
+    await db.update(
+      'collections',
+      collection.toMap(),
+      where: 'id = ?',
+      whereArgs: [collection.id],
+    );
+  }
+
+  Future<void> deleteCollection(String id) async {
+    final db = await database;
+    await db.delete('collections', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> seedDefaultCollectionsIfEmpty(
+    List<MemoryCollection> defaults,
+  ) async {
+    final db = await database;
+    final count = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM collections'),
+    );
+
+    if (count == null || count == 0) {
+      final batch = db.batch();
+      for (final col in defaults) {
+        batch.insert(
+          'collections',
+          col.toMap(),
           conflictAlgorithm: ConflictAlgorithm.ignore,
         );
       }

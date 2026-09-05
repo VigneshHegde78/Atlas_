@@ -290,6 +290,10 @@ class ProfileScreen extends StatelessWidget {
         syncStatusText = 'Syncing with Cloud...';
         syncStatusColor = AtlasColors.amber;
         break;
+      case CloudSyncState.pending:
+        syncStatusText = 'Changes Pending Upload';
+        syncStatusColor = AtlasColors.amber;
+        break;
       case CloudSyncState.offline:
       case CloudSyncState.error:
         syncStatusText = 'Offline First (Local SQLite)';

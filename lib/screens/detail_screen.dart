@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,6 +23,7 @@ class _DetailScreenState extends State<DetailScreen> {
   bool _isPlayingAudio = false;
   double _audioProgress = 0.0;
   int _audioElapsedSec = 0;
+  Timer? _audioTimer;
 
   @override
   void initState() {
@@ -29,36 +31,47 @@ class _DetailScreenState extends State<DetailScreen> {
     _currentMemory = widget.memory;
   }
 
+  @override
+  void dispose() {
+    _audioTimer?.cancel();
+    super.dispose();
+  }
+
   void _toggleAudioPlayback(int totalSec) {
+    HapticFeedback.selectionClick();
+    final effectiveTotalSec = totalSec > 0 ? totalSec : 15;
+
     if (_isPlayingAudio) {
+      _audioTimer?.cancel();
       setState(() {
         _isPlayingAudio = false;
       });
     } else {
+      _audioTimer?.cancel();
       setState(() {
         _isPlayingAudio = true;
+        if (_audioProgress >= 1.0) {
+          _audioProgress = 0.0;
+          _audioElapsedSec = 0;
+        }
       });
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (!mounted || !_isPlayingAudio) return;
-        _stepPlayback(totalSec);
-      });
-    }
-  }
 
-  void _stepPlayback(int totalSec) {
-    if (!_isPlayingAudio || !mounted) return;
-    setState(() {
-      _audioElapsedSec++;
-      _audioProgress = (_audioElapsedSec / (totalSec > 0 ? totalSec : 15))
-          .clamp(0.0, 1.0);
-      if (_audioProgress >= 1.0) {
-        _isPlayingAudio = false;
-        _audioElapsedSec = 0;
-        _audioProgress = 0.0;
-      }
-    });
-    if (_isPlayingAudio) {
-      Future.delayed(const Duration(seconds: 1), () => _stepPlayback(totalSec));
+      _audioTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        setState(() {
+          _audioProgress += 0.1 / effectiveTotalSec;
+          _audioElapsedSec = (_audioProgress * effectiveTotalSec).toInt();
+          if (_audioProgress >= 1.0) {
+            _audioProgress = 0.0;
+            _audioElapsedSec = 0;
+            _isPlayingAudio = false;
+            timer.cancel();
+          }
+        });
+      });
     }
   }
 
@@ -94,7 +107,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   : (imagePath != null && imagePath.startsWith('http')
                         ? Image.network(
                             imagePath,
-                            errorBuilder: (_, __, ___) => const Center(
+                            errorBuilder: (ctx, err, stack) => const Center(
                               child: Text(
                                 'Unable to load image',
                                 style: TextStyle(color: Colors.white70),
@@ -104,12 +117,15 @@ class _DetailScreenState extends State<DetailScreen> {
                         : (imagePath != null && imagePath.isNotEmpty
                               ? Image.file(
                                   File(imagePath),
-                                  errorBuilder: (_, __, ___) => const Center(
-                                    child: Text(
-                                      'Unable to load image file',
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  ),
+                                  errorBuilder: (ctx, err, stack) =>
+                                      const Center(
+                                        child: Text(
+                                          'Unable to load image file',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ),
                                 )
                               : const SizedBox.shrink())),
             ),
@@ -197,6 +213,99 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  void _showAddToCollectionModal() {
+    final provider = Provider.of<MemoryProvider>(context, listen: false);
+    final collections = provider.collections.where((c) => !c.isSmart).toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Add Memory to Collection Space',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (collections.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  'No custom collections created yet. Create one from the Collections screen.',
+                ),
+              )
+            else
+              ...collections.map((col) {
+                final isInCol = col.itemIds.contains(_currentMemory.id);
+                return ListTile(
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: col.color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(col.icon, color: col.color, size: 18),
+                  ),
+                  title: Text(
+                    col.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${col.itemIds.length} items',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  trailing: isInCol
+                      ? const Icon(
+                          Icons.check_circle_rounded,
+                          color: Color(0xFF2563EB),
+                        )
+                      : const Icon(
+                          Icons.add_circle_outline_rounded,
+                          color: Colors.grey,
+                        ),
+                  onTap: () {
+                    if (isInCol) {
+                      provider.removeMemoryFromCollection(
+                        _currentMemory.id,
+                        col.id,
+                      );
+                      Navigator.of(ctx).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Removed from "${col.title}"')),
+                      );
+                    } else {
+                      provider.addMemoryToCollection(_currentMemory.id, col.id);
+                      Navigator.of(ctx).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Added to "${col.title}"')),
+                      );
+                    }
+                  },
+                );
+              }),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<MemoryProvider>(context);
@@ -234,28 +343,28 @@ class _DetailScreenState extends State<DetailScreen> {
                                     ? Image.network(
                                         imagePath,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Center(
-                                          child: Icon(
-                                            memory.iconData,
-                                            size: 80,
-                                            color: AtlasColors.blue.withValues(
-                                              alpha: 0.4,
+                                        errorBuilder: (ctx, err, stack) =>
+                                            Center(
+                                              child: Icon(
+                                                memory.iconData,
+                                                size: 80,
+                                                color: AtlasColors.blue
+                                                    .withValues(alpha: 0.4),
+                                              ),
                                             ),
-                                          ),
-                                        ),
                                       )
                                     : Image.file(
                                         File(imagePath),
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Center(
-                                          child: Icon(
-                                            memory.iconData,
-                                            size: 80,
-                                            color: AtlasColors.blue.withValues(
-                                              alpha: 0.4,
+                                        errorBuilder: (ctx, err, stack) =>
+                                            Center(
+                                              child: Icon(
+                                                memory.iconData,
+                                                size: 80,
+                                                color: AtlasColors.blue
+                                                    .withValues(alpha: 0.4),
+                                              ),
                                             ),
-                                          ),
-                                        ),
                                       ))
                               : Center(
                                   child: Icon(
@@ -334,6 +443,22 @@ class _DetailScreenState extends State<DetailScreen> {
                                   color: AtlasColors.blue,
                                 ),
                                 onPressed: _openEditSheet,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            CircleAvatar(
+                              backgroundColor: Colors.white.withValues(
+                                alpha: 0.95,
+                              ),
+                              radius: 22,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.folder_copy_rounded,
+                                  size: 18,
+                                  color: Color(0xFF0F172A),
+                                ),
+                                tooltip: 'Add to Collection',
+                                onPressed: _showAddToCollectionModal,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1585,13 +1710,13 @@ class _DetailScreenState extends State<DetailScreen> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: AtlasColors.purple.withValues(alpha: 0.12),
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
                   child: Icon(
                     Icons.mic_rounded,
-                    color: AtlasColors.purple,
+                    color: Color(0xFF0F172A),
                     size: 18,
                   ),
                 ),
@@ -1599,11 +1724,11 @@ class _DetailScreenState extends State<DetailScreen> {
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
-                  'VOICE MEMO & TRANSCRIPT',
+                  'VOICE MEMO & AUDIO',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: AtlasColors.purple,
+                    color: Color(0xFF0F172A),
                     letterSpacing: 1.0,
                   ),
                 ),
@@ -1614,7 +1739,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: AtlasColors.purple.withValues(alpha: 0.08),
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -1622,7 +1747,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: AtlasColors.purple,
+                    color: Color(0xFF0F172A),
                   ),
                 ),
               ),
@@ -1632,7 +1757,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
           // Interactive Audio Player Bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(20),
@@ -1647,14 +1772,12 @@ class _DetailScreenState extends State<DetailScreen> {
                     height: 44,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [AtlasColors.purple, Colors.blueAccent],
-                      ),
+                      color: const Color(0xFF0F172A),
                       boxShadow: [
                         BoxShadow(
-                          color: AtlasColors.purple.withValues(alpha: 0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -1671,19 +1794,20 @@ class _DetailScreenState extends State<DetailScreen> {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             _isPlayingAudio
-                                ? 'Playing...'
-                                : 'Tap to play recording',
+                                ? 'Playing Recording...'
+                                : 'Tap to Play',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: _isPlayingAudio
-                                  ? AtlasColors.purple
+                                  ? const Color(0xFF2563EB)
                                   : Colors.grey.shade700,
                             ),
                           ),
@@ -1705,7 +1829,7 @@ class _DetailScreenState extends State<DetailScreen> {
                           minHeight: 6,
                           backgroundColor: Colors.grey.shade200,
                           valueColor: const AlwaysStoppedAnimation<Color>(
-                            AtlasColors.purple,
+                            Color(0xFF2563EB),
                           ),
                         ),
                       ),
@@ -1718,16 +1842,60 @@ class _DetailScreenState extends State<DetailScreen> {
 
           if (transcript.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const Text(
-              'SPEECH TRANSCRIPTION',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: Colors.grey,
-                letterSpacing: 0.8,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'SPEECH TRANSCRIPTION',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.grey,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                InkWell(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: transcript));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Transcription copied to clipboard!'),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.copy_rounded,
+                          size: 11,
+                          color: AtlasColors.blue,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'Copy',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AtlasColors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),

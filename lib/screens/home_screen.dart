@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/memory_item.dart';
 import '../providers/memory_provider.dart';
@@ -10,6 +11,7 @@ import 'search_screen.dart';
 import 'needs_review_screen.dart';
 import 'profile_screen.dart';
 import 'add_memory_sheet.dart';
+import 'collections_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +22,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _selectedFilter = 'All'; // 'All', 'Favorites', or category name
+  bool _isSelectionMode = false;
+  final Set<String> _selectedMemoryIds = {};
 
   void _openAddMemory() {
     showModalBottomSheet(
@@ -27,6 +31,201 @@ class _HomeScreenState extends State<HomeScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const AddMemorySheet(),
+    );
+  }
+
+  void _toggleSelection(String id) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedMemoryIds.contains(id)) {
+        _selectedMemoryIds.remove(id);
+        if (_selectedMemoryIds.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedMemoryIds.add(id);
+        _isSelectionMode = true;
+      }
+    });
+  }
+
+  void _selectAll(List<MemoryItem> memories) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedMemoryIds.length == memories.length) {
+        _selectedMemoryIds.clear();
+        _isSelectionMode = false;
+      } else {
+        _selectedMemoryIds.addAll(memories.map((m) => m.id));
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectedMemoryIds.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  void _showBulkCategoryPicker(BuildContext context, MemoryProvider provider) {
+    final categories = [
+      'Finance',
+      'Recipes',
+      'Travel',
+      'Development',
+      'Design Systems',
+      'Shopping',
+      'Work',
+      'Reference',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Assign Category to Selected Items',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: categories.map((cat) {
+                return InkWell(
+                  onTap: () {
+                    provider.bulkAssignCategory(
+                      _selectedMemoryIds.toList(),
+                      cat,
+                    );
+                    _exitSelectionMode();
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Updated category to "$cat" for selected items',
+                        ),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      cat,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBulkCollectionPicker(
+    BuildContext context,
+    MemoryProvider provider,
+  ) {
+    final collections = provider.collections.where((c) => !c.isSmart).toList();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Add to Collection Space',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (collections.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text('No custom collections created yet.'),
+              )
+            else
+              ...collections.map((col) {
+                return ListTile(
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: col.color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(col.icon, color: col.color, size: 18),
+                  ),
+                  title: Text(
+                    col.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${col.itemIds.length} items',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onTap: () {
+                    provider.bulkAddToCollection(
+                      _selectedMemoryIds.toList(),
+                      col.id,
+                    );
+                    _exitSelectionMode();
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Added to collection "${col.title}"'),
+                      ),
+                    );
+                  },
+                );
+              }),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
   }
 
@@ -54,17 +253,84 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AtlasColors.surface,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 74.0),
-        child: FloatingActionButton(
-          onPressed: _openAddMemory,
-          backgroundColor: AtlasColors.blue,
-          foregroundColor: Colors.white,
-          elevation: 8,
-          shape: const CircleBorder(),
-          child: const Icon(Icons.add_rounded, size: 30),
-        ),
-      ),
+      floatingActionButton: _isSelectionMode
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 74.0),
+              child: FloatingActionButton(
+                onPressed: _openAddMemory,
+                backgroundColor: const Color(0xFF0F172A),
+                foregroundColor: Colors.white,
+                elevation: 8,
+                shape: const CircleBorder(),
+                child: const Icon(Icons.add_rounded, size: 30),
+              ),
+            ),
+      bottomNavigationBar: _isSelectionMode
+          ? Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _bulkActionButton(
+                    icon: Icons.star_rounded,
+                    label: 'Favorite',
+                    onTap: () {
+                      memoryProvider.bulkToggleFavorite(
+                        _selectedMemoryIds.toList(),
+                        true,
+                      );
+                      _exitSelectionMode();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Marked selected items as Favorite'),
+                        ),
+                      );
+                    },
+                  ),
+                  _bulkActionButton(
+                    icon: Icons.folder_rounded,
+                    label: 'Collection',
+                    onTap: () =>
+                        _showBulkCollectionPicker(context, memoryProvider),
+                  ),
+                  _bulkActionButton(
+                    icon: Icons.category_rounded,
+                    label: 'Category',
+                    onTap: () =>
+                        _showBulkCategoryPicker(context, memoryProvider),
+                  ),
+                  _bulkActionButton(
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Delete',
+                    color: Colors.redAccent,
+                    onTap: () {
+                      final count = _selectedMemoryIds.length;
+                      memoryProvider.bulkSoftDelete(
+                        _selectedMemoryIds.toList(),
+                      );
+                      _exitSelectionMode();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Moved $count items to Trash')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            )
+          : null,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -72,203 +338,311 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Header with App Logo, Greeting, Sync Status Indicator & Profile Avatar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                'Good day, Vignesh',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              _buildSyncStatusBadge(memoryProvider),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            'Your Memory',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: AtlasColors.blue,
-                              letterSpacing: -0.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  InkWell(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const ProfileScreen(),
-                        ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AtlasColors.blue,
-                        shape: BoxShape.circle,
-                        boxShadow: [AtlasTheme.softShadow],
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'VH',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Search Trigger Bar
-              InkWell(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const SearchScreen(),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(28),
-                child: Container(
-                  width: double.infinity,
+              // Top Header with Selection Mode or Default Header
+              if (_isSelectionMode)
+                Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [AtlasTheme.softShadow],
-                    border: Border.all(color: Colors.grey.shade100),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: Row(
                     children: [
-                      ShaderMask(
-                        shaderCallback: (bounds) => const LinearGradient(
-                          colors: [AtlasColors.purple, Colors.blueAccent],
-                        ).createShader(bounds),
-                        child: const Icon(
-                          Icons.auto_awesome_rounded,
-                          color: Colors.white,
-                          size: 20,
+                      IconButton(
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Color(0xFF0F172A),
+                        ),
+                        onPressed: _exitSelectionMode,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_selectedMemoryIds.length} Selected',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
                         ),
                       ),
-                      const SizedBox(width: 14),
-                      Text(
-                        'Ask ATLAS anything...',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade400,
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => _selectAll(displayedMemories),
+                        child: Text(
+                          _selectedMemoryIds.length == displayedMemories.length
+                              ? 'Deselect All'
+                              : 'Select All',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF2563EB),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Filter Chips Bar
-              SizedBox(
-                height: 38,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: categories.length,
-                  itemBuilder: (context, idx) {
-                    final cat = categories.elementAt(idx);
-                    final isSelected = _selectedFilter == cat;
-                    final isFavTab = cat == 'Favorites';
-
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selectedFilter = cat),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? (isFavTab
-                                      ? AtlasColors.rose
-                                      : AtlasColors.blue)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isSelected
-                                  ? (isFavTab
-                                        ? AtlasColors.rose
-                                        : AtlasColors.blue)
-                                  : Colors.grey.shade200,
-                            ),
-                            boxShadow: isSelected
-                                ? [AtlasTheme.softShadow]
-                                : null,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (isFavTab) ...[
-                                Icon(
-                                  Icons.favorite_rounded,
-                                  size: 13,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : AtlasColors.rose,
+                )
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Good day, Vignesh',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade500,
+                                  ),
                                 ),
-                                const SizedBox(width: 5),
+                                const SizedBox(width: 6),
+                                _buildSyncStatusBadge(memoryProvider),
                               ],
-                              Text(
-                                isFavTab
-                                    ? 'Favorites (${memoryProvider.favoriteMemories.length})'
-                                    : cat,
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Your Memory',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.folder_copy_rounded,
+                            color: Color(0xFF0F172A),
+                          ),
+                          tooltip: 'Collections & Albums',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const CollectionsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        InkWell(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const ProfileScreen(),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(24),
+                          child: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F172A),
+                              shape: BoxShape.circle,
+                              boxShadow: [AtlasTheme.softShadow],
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'VH',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : AtlasColors.textPrimary,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
                                 ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
+                      ],
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 24),
+
+              // Search Trigger Bar
+              if (!_isSelectionMode)
+                InkWell(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const SearchScreen(),
                       ),
                     );
                   },
+                  borderRadius: BorderRadius.circular(28),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [AtlasTheme.softShadow],
+                      border: Border.all(color: Colors.grey.shade100),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Color(0xFF2563EB),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 14),
+                        Text(
+                          'Ask ATLAS anything...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey.shade400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
+              if (!_isSelectionMode) const SizedBox(height: 20),
+
+              // Filter Chips Bar + Collections Shortcut
+              if (!_isSelectionMode)
+                SizedBox(
+                  height: 38,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: categories.length + 1,
+                    itemBuilder: (context, idx) {
+                      if (idx == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const CollectionsScreen(),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF0F172A,
+                                ).withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.folder_copy_rounded,
+                                    size: 13,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  SizedBox(width: 5),
+                                  Text(
+                                    'Collections',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final cat = categories.elementAt(idx - 1);
+                      final isSelected = _selectedFilter == cat;
+                      final isFavTab = cat == 'Favorites';
+
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selectedFilter = cat),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? (isFavTab
+                                        ? AtlasColors.rose
+                                        : const Color(0xFF0F172A))
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected
+                                    ? (isFavTab
+                                          ? AtlasColors.rose
+                                          : const Color(0xFF0F172A))
+                                    : Colors.grey.shade200,
+                              ),
+                              boxShadow: isSelected
+                                  ? [AtlasTheme.softShadow]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isFavTab) ...[
+                                  Icon(
+                                    Icons.favorite_rounded,
+                                    size: 13,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AtlasColors.rose,
+                                  ),
+                                  const SizedBox(width: 5),
+                                ],
+                                Text(
+                                  isFavTab
+                                      ? 'Favorites (${memoryProvider.favoriteMemories.length})'
+                                      : cat,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AtlasColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              if (!_isSelectionMode) const SizedBox(height: 20),
 
               // Needs Clarification Triage Alert
-              if (memoryProvider.triageItems.isNotEmpty)
+              if (memoryProvider.triageItems.isNotEmpty && !_isSelectionMode)
                 InkWell(
                   onTap: () {
                     Navigator.of(context).push(
@@ -298,35 +672,34 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF78350F),
+                                  color: AtlasColors.amberDark,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'I\'m not completely sure how to organize a few recent saves.',
+                                'Review imported screenshots & voice notes needing context.',
                                 style: TextStyle(
                                   fontSize: 13,
+                                  color: AtlasColors.amberDark.withValues(
+                                    alpha: 0.8,
+                                  ),
                                   fontWeight: FontWeight.w500,
-                                  color: const Color(
-                                    0xFFB45309,
-                                  ).withValues(alpha: 0.9),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 12),
                         Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AtlasColors.amber.withValues(alpha: 0.2),
+                          width: 36,
+                          height: 36,
+                          decoration: const BoxDecoration(
+                            color: AtlasColors.amber,
                             shape: BoxShape.circle,
                           ),
                           child: const Center(
                             child: Icon(
                               Icons.arrow_forward_rounded,
-                              color: Color(0xFF78350F),
+                              color: Colors.white,
                               size: 18,
                             ),
                           ),
@@ -335,7 +708,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-              if (memoryProvider.triageItems.isNotEmpty)
+              if (memoryProvider.triageItems.isNotEmpty && !_isSelectionMode)
                 const SizedBox(height: 24),
 
               // Memories List Header
@@ -351,16 +724,56 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: AtlasColors.blue,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
-                  Text(
-                    '${displayedMemories.length} items',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade400,
-                    ),
+                  Row(
+                    children: [
+                      if (!_isSelectionMode)
+                        InkWell(
+                          onTap: () {
+                            setState(() => _isSelectionMode = true);
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(
+                                  Icons.checklist_rounded,
+                                  size: 14,
+                                  color: Color(0xFF0F172A),
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Select',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${displayedMemories.length} items',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -396,7 +809,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: AtlasColors.blue,
+                          color: Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -415,7 +828,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 )
               else
-                // Memory Cards with Swipe-to-Delete
+                // Memory Cards
                 ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -424,10 +837,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 14),
                   itemBuilder: (context, index) {
                     final item = displayedMemories[index];
+                    final isSelected = _selectedMemoryIds.contains(item.id);
 
                     return Dismissible(
                       key: Key('mem_${item.id}'),
-                      direction: DismissDirection.endToStart,
+                      direction: _isSelectionMode
+                          ? DismissDirection.none
+                          : DismissDirection.endToStart,
                       background: Container(
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.only(right: 24),
@@ -473,12 +889,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                       child: InkWell(
+                        onLongPress: () => _toggleSelection(item.id),
                         onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => DetailScreen(memory: item),
-                            ),
-                          );
+                          if (_isSelectionMode) {
+                            _toggleSelection(item.id);
+                          } else {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    DetailScreen(memory: item),
+                              ),
+                            );
+                          }
                         },
                         borderRadius: BorderRadius.circular(24),
                         child: Container(
@@ -487,10 +909,27 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [AtlasTheme.softShadow],
-                            border: Border.all(color: Colors.grey.shade100),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF2563EB)
+                                  : Colors.grey.shade100,
+                              width: isSelected ? 2 : 1,
+                            ),
                           ),
                           child: Row(
                             children: [
+                              if (_isSelectionMode) ...[
+                                Icon(
+                                  isSelected
+                                      ? Icons.check_circle_rounded
+                                      : Icons.radio_button_unchecked_rounded,
+                                  color: isSelected
+                                      ? const Color(0xFF2563EB)
+                                      : Colors.grey.shade400,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 12),
+                              ],
                               Container(
                                 width: 56,
                                 height: 56,
@@ -515,14 +954,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       fit: BoxFit.cover,
                                                       errorBuilder:
                                                           (
-                                                            _,
-                                                            __,
-                                                            ___,
+                                                            ctx,
+                                                            err,
+                                                            stack,
                                                           ) => Center(
                                                             child: Icon(
                                                               item.iconData,
-                                                              color: AtlasColors
-                                                                  .blue,
+                                                              color:
+                                                                  const Color(
+                                                                    0xFF0F172A,
+                                                                  ),
                                                               size: 24,
                                                             ),
                                                           ),
@@ -532,14 +973,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       fit: BoxFit.cover,
                                                       errorBuilder:
                                                           (
-                                                            _,
-                                                            __,
-                                                            ___,
+                                                            ctx,
+                                                            err,
+                                                            stack,
                                                           ) => Center(
                                                             child: Icon(
                                                               item.iconData,
-                                                              color: AtlasColors
-                                                                  .blue,
+                                                              color:
+                                                                  const Color(
+                                                                    0xFF0F172A,
+                                                                  ),
                                                               size: 24,
                                                             ),
                                                           ),
@@ -547,7 +990,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                             : Center(
                                                 child: Icon(
                                                   item.iconData,
-                                                  color: AtlasColors.blue,
+                                                  color: const Color(
+                                                    0xFF0F172A,
+                                                  ),
                                                   size: 24,
                                                 ),
                                               )),
@@ -587,8 +1032,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w600,
-                                            color: AtlasColors.purple
-                                                .withValues(alpha: 0.8),
+                                            color: Colors.grey.shade600,
                                           ),
                                         ),
                                         if (item.isFavorite) ...[
@@ -603,20 +1047,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ],
                                 ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  item.isFavorite
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_border_rounded,
-                                  color: item.isFavorite
-                                      ? AtlasColors.rose
-                                      : Colors.grey.shade300,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  memoryProvider.toggleFavorite(item.id);
-                                },
                               ),
                             ],
                           ),
@@ -633,55 +1063,83 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSyncStatusBadge(MemoryProvider provider) {
-    Color badgeColor;
-    IconData badgeIcon;
-    String label;
-
-    switch (provider.syncState) {
-      case CloudSyncState.synced:
-        badgeColor = AtlasColors.emerald;
-        badgeIcon = Icons.cloud_done_rounded;
-        label = 'Cloud Synced';
-        break;
-      case CloudSyncState.syncing:
-        badgeColor = AtlasColors.amber;
-        badgeIcon = Icons.sync_rounded;
-        label = 'Syncing...';
-        break;
-      case CloudSyncState.offline:
-      case CloudSyncState.error:
-        badgeColor = Colors.grey.shade400;
-        badgeIcon = Icons.cloud_off_rounded;
-        label = 'Local Only';
-        break;
-    }
-
-    return GestureDetector(
-      onTap: () => provider.syncNow(),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: badgeColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
-        ),
-        child: Row(
+  Widget _bulkActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color color = Colors.white,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(badgeIcon, size: 12, color: badgeColor),
-            const SizedBox(width: 4),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
-                fontSize: 10,
+                color: color,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: badgeColor,
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildSyncStatusBadge(MemoryProvider memoryProvider) {
+    switch (memoryProvider.syncState) {
+      case CloudSyncState.synced:
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: AtlasColors.emerald,
+            shape: BoxShape.circle,
+          ),
+        );
+      case CloudSyncState.syncing:
+        return const SizedBox(
+          width: 8,
+          height: 8,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            valueColor: AlwaysStoppedAnimation<Color>(AtlasColors.blue),
+          ),
+        );
+      case CloudSyncState.pending:
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: AtlasColors.amber,
+            shape: BoxShape.circle,
+          ),
+        );
+      case CloudSyncState.error:
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: AtlasColors.rose,
+            shape: BoxShape.circle,
+          ),
+        );
+      case CloudSyncState.offline:
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade400,
+            shape: BoxShape.circle,
+          ),
+        );
+    }
   }
 }
